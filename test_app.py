@@ -1,29 +1,24 @@
 import pytest
 from unittest.mock import MagicMock, patch
-from app import app, conectar_bd  # Importamos a aplicação Flask e a função de conexão
+from app import app  
 
+# cliente teste
 @pytest.fixture
 def client():
-    """Cria um cliente de teste para a API."""
     app.config["TESTING"] = True
     with app.test_client() as client:
         yield client
 
 
+# ============================== GET ==============================
+# todos os produtos
 @patch("app.conectar_bd")
 def test_get_products(mock_conectar_bd, client):
-    mock_conn = MagicMock()
-    mock_cursor = MagicMock()
-    mock_conn.cursor.return_value = mock_cursor
-    mock_cursor.fetchall.return_value = [
-        (0, "Notebook", "Notebook Alienware muito bom", 100000.00, "Usado", 1, 1, "Anunciado", "2023-10-01 10:00:00"),
-        (1, "Iphone 15", "Iphone 15 pro max muito bom", 2000.00, "Seminovo", 2, 2, "Pausado", "2023-20-02 20:00:00"),
-    ]
-    mock_conectar_bd.return_value = mock_conn
-    
-    response = client.get("/products")
-    assert response.status_code == 200
-    data = response.get_json() == [
+    mock_db = MagicMock()
+    mock_products_collection = MagicMock()
+    mock_db.products = mock_products_collection
+
+    mock_products_collection.find.return_value = [
         {
             "id": 0,
             "name": "Notebook",
@@ -42,62 +37,25 @@ def test_get_products(mock_conectar_bd, client):
             "price": 2000.00,
             "state": "Seminovo",
             "category_id": 2,
-            "user_id": 2,
+            "seller_id": 2,
             "status": "Pausado",
-            "created_at": "2023-20-02 20:00:00"
+            "created_at": "2023-02-20 20:00:00"
         }
     ]
-    
+    mock_conectar_bd.return_value = mock_db
 
+    response = client.get("/products")
+    assert response.status_code == 200
+    assert response.get_json() == mock_products_collection.find.return_value
+
+
+# por id
+@patch("app.conectar_bd")
 @pytest.mark.parametrize(
-    'product_id, mock_result',
+    "product_id, mock_doc, expected_json",
     [
-    (0, (0, "Notebook", "Notebook Alienware muito bom", 100000.00, "Usado", 1, 1, "Anunciado", "2023-10-01 10:00:00")),
-    (1, (1, "Iphone 15", "Iphone 15 pro max muito bom", 2000.00, "Seminovo", 2, 2, "Pausado", "2023-20-02 20:00:00"))
-    ]
-)
-
-
-def test_get_product_by_id(client, id, mock_result):
-    with patch("app.conectar_bd") as mock_conectar_bd:
-        mock_conn = MagicMock()
-        mock_cursor = MagicMock()
-        mock_conn.cursor.return_value = mock_cursor
-        mock_cursor.fetchone.return_value = mock_result
-        mock_conectar_bd.return_value = mock_conn
-        response = client.get(f'/products/{id}')
-   
-    
-    # THEN
-        assert response.status_code == 200
-        assert response.get_json() == mock_result
-
-def test_get_product_by_id_not_found(client):
-    with patch("app.conectar_bd") as mock_conectar_bd:
-        mock_conn = MagicMock()
-        mock_cursor = MagicMock()
-        mock_conn.cursor.return_value = mock_cursor
-        mock_cursor.fetchone.return_value = None
-        mock_conectar_bd.return_value = mock_conn
-        response = client.get('/products/999999999')
-    # THEN
-        assert response.status_code == 404
-        assert response.get_json() == {"error": "Product not found"}
-
-
-def test_get_products_by_category(client, category_id):
-    with patch("app.conectar_bd") as mock_conectar_bd:
-        mock_conn = MagicMock()
-        mock_cursor = MagicMock()
-        mock_conn.cursor.return_value = mock_cursor
-        mock_cursor.fetchall.return_value = [
-            (0, "Notebook", "Notebook Alienware muito bom", 100000.00, "Usado", 1, 1, "Anunciado", "2023-10-01 10:00:00"),
-        ]
-        mock_conectar_bd.return_value = mock_conn
-        response = client.get('/products/category/1')
-    # THEN
-        assert response.status_code == 200
-        assert response.get_json() == [
+        (
+            0,
             {
                 "id": 0,
                 "name": "Notebook",
@@ -108,11 +66,142 @@ def test_get_products_by_category(client, category_id):
                 "seller_id": 1,
                 "status": "Anunciado",
                 "created_at": "2023-10-01 10:00:00"
-            }
-        ]
+            },
+            {
+                "id": 0,
+                "name": "Notebook",
+                "description": "Notebook Alienware muito bom",
+                "price": 100000.00,
+                "state": "Usado",
+                "category_id": 1,
+                "seller_id": 1,
+                "status": "Anunciado",
+                "created_at": "2023-10-01 10:00:00"
+            },
+        ),
+        (
+            1,
+            {
+                "id": 1,
+                "name": "Iphone 15",
+                "description": "Iphone 15 pro max muito bom",
+                "price": 2000.00,
+                "state": "Seminovo",
+                "category_id": 2,
+                "seller_id": 2,
+                "status": "Pausado",
+                "created_at": "2023-02-20 20:00:00"
+            },
+            {
+                "id": 1,
+                "name": "Iphone 15",
+                "description": "Iphone 15 pro max muito bom",
+                "price": 2000.00,
+                "state": "Seminovo",
+                "category_id": 2,
+                "seller_id": 2,
+                "status": "Pausado",
+                "created_at": "2023-02-20 20:00:00"
+            },
+        ),
+    ],
+)
+def test_get_product_by_id(mock_conectar_bd, client, product_id, mock_doc, expected_json):
+    mock_db = MagicMock()
+    mock_products_collection = MagicMock()
+    mock_db.products = mock_products_collection
+
+    mock_products_collection.find_one.return_value = mock_doc
+    mock_conectar_bd.return_value = mock_db
+
+    response = client.get(f"/products/{product_id}")
+    assert response.status_code == 200
+    assert response.get_json() == expected_json
 
 
-def test_post_product(client):
+# erro produto não encontrado
+@patch("app.conectar_bd")
+def test_get_product_by_id_not_found(mock_conectar_bd, client):
+    mock_db = MagicMock()
+    mock_products_collection = MagicMock()
+    mock_db.products = mock_products_collection
+
+    mock_products_collection.find_one.return_value = None
+    mock_conectar_bd.return_value = mock_db
+
+    response = client.get("/products/999999999")
+    assert response.status_code == 404
+    assert response.get_json() == {"error": "Product not found"}
+
+
+# por categoria
+@patch("app.conectar_bd")
+def test_get_products_by_category(mock_conectar_bd, client):
+    mock_db = MagicMock()
+    mock_products_collection = MagicMock()
+    mock_db.products = mock_products_collection
+
+    mock_products_collection.find.return_value = [
+        {
+            "id": 0,
+            "name": "Notebook",
+            "description": "Notebook Alienware muito bom",
+            "price": 100000.00,
+            "state": "Usado",
+            "category_id": 1,
+            "seller_id": 1,
+            "status": "Anunciado",
+            "created_at": "2023-10-01 10:00:00"
+        }
+    ]
+    mock_conectar_bd.return_value = mock_db
+
+    response = client.get("/products/category/1")
+    assert response.status_code == 200
+    assert response.get_json() == mock_products_collection.find.return_value
+
+
+# por vendedor
+@patch("app.conectar_bd")
+def test_get_products_by_seller(mock_conectar_bd, client):
+    mock_db = MagicMock()
+    mock_products_collection = MagicMock()
+    mock_db.products = mock_products_collection
+
+    seller_products = [
+        {
+            "id": 10,
+            "name": "Mesa Gamer",
+            "description": "Mesa para setup",
+            "price": 450.00,
+            "state": "Usado",
+            "category_id": 5,
+            "seller_id": 42,
+            "status": "Anunciado",
+            "created_at": "2024-01-10 12:00:00"
+        }
+    ]
+    mock_products_collection.find.return_value = seller_products
+    mock_conectar_bd.return_value = mock_db
+
+    response = client.get("/products/seller/42")
+    assert response.status_code == 200
+    assert response.get_json() == seller_products
+
+
+# ============================== POST ==============================
+@patch("app.conectar_bd")
+def test_post_product(mock_conectar_bd, client):
+    mock_db = MagicMock()
+    mock_products_collection = MagicMock()
+    mock_db.products = mock_products_collection
+
+    insert_result = MagicMock()
+    insert_result.inserted_id = "some-id"
+    mock_products_collection.insert_one.return_value = insert_result
+
+    mock_conectar_bd.return_value = mock_db
+
     new_product = {
         "name": "Tablet",
         "description": "Tablet Samsung Galaxy Tab S7",
@@ -122,17 +211,18 @@ def test_post_product(client):
         "seller_id": 3,
         "status": "Anunciado"
     }
-    with patch("app.conectar_bd") as mock_conectar_bd:
-        mock_conn = MagicMock()
-        mock_cursor = MagicMock()
-        mock_conn.cursor.return_value = mock_cursor
-        mock_conectar_bd.return_value = mock_conn
-        response = client.post('/products', json=new_product)
-    # THEN
-        assert response.status_code == 201
-        assert response.get_json() == {"message": "Produto criado com sucesso"}
-        
 
+    response = client.post("/products", json=new_product)
+    assert response.status_code == 201
+    assert response.get_json() == {"message": "Produto criado com sucesso"}
+
+    assert mock_products_collection.insert_one.call_count == 1
+    called_arg = mock_products_collection.insert_one.call_args[0][0]
+    assert called_arg["name"] == new_product["name"]
+    assert called_arg["price"] == new_product["price"]
+
+
+# erro de dados inválidos
 def test_post_product_invalid_data(client):
     invalid_product = {
         "name": "",
@@ -143,8 +233,94 @@ def test_post_product_invalid_data(client):
         "seller_id": 3,
         "status": "Anunciado"
     }
-    response = client.post('/products', json=invalid_product)
-    # THEN
+
+    response = client.post("/products", json=invalid_product)
     assert response.status_code == 400
     assert response.get_json() == {"error": "Dados inválidos"}
-    
+
+
+# ============================== PUT ==============================
+@patch("app.conectar_bd")
+def test_update_product_success(mock_conectar_bd, client):
+    mock_db = MagicMock()
+    mock_products_collection = MagicMock()
+    mock_db.products = mock_products_collection
+
+    update_result = MagicMock()
+    update_result.matched_count = 1
+    update_result.modified_count = 1
+    mock_products_collection.update_one.return_value = update_result
+
+    mock_conectar_bd.return_value = mock_db
+
+    update_payload = {
+        "price": 1999.99,
+        "status": "Anunciado"
+    }
+
+    response = client.put("/products/1", json=update_payload)
+    assert response.status_code == 200
+    assert response.get_json() == {"message": "Produto atualizado com sucesso"}
+
+    assert mock_products_collection.update_one.call_count == 1
+    called_filter = mock_products_collection.update_one.call_args[0][0]
+    assert called_filter.get("id") == 1 or called_filter.get("_id") == 1
+
+
+# erro produto não encontrado
+@patch("app.conectar_bd")
+def test_update_product_not_found(mock_conectar_bd, client):
+    mock_db = MagicMock()
+    mock_products_collection = MagicMock()
+    mock_db.products = mock_products_collection
+
+    update_result = MagicMock()
+    update_result.matched_count = 0
+    update_result.modified_count = 0
+    mock_products_collection.update_one.return_value = update_result
+
+    mock_conectar_bd.return_value = mock_db
+
+    update_payload = {"price": 1999.99}
+    response = client.put("/products/999999", json=update_payload)
+    assert response.status_code == 404
+    assert response.get_json() == {"error": "Product not found"}
+
+
+# ============================== DELETE ==============================
+@patch("app.conectar_bd")
+def test_delete_product_success(mock_conectar_bd, client):
+    mock_db = MagicMock()
+    mock_products_collection = MagicMock()
+    mock_db.products = mock_products_collection
+
+    delete_result = MagicMock()
+    delete_result.deleted_count = 1
+    mock_products_collection.delete_one.return_value = delete_result
+
+    mock_conectar_bd.return_value = mock_db
+
+    response = client.delete("/products/1")
+    assert response.status_code == 200
+    assert response.get_json() == {"message": "Produto removido com sucesso"}
+    assert mock_products_collection.delete_one.call_count == 1
+    called_filter = mock_products_collection.delete_one.call_args[0][0]
+    assert called_filter.get("id") == 1 or called_filter.get("_id") == 1
+
+
+# erro produto não encontrado
+@patch("app.conectar_bd")
+def test_delete_product_not_found(mock_conectar_bd, client):
+    mock_db = MagicMock()
+    mock_products_collection = MagicMock()
+    mock_db.products = mock_products_collection
+
+    delete_result = MagicMock()
+    delete_result.deleted_count = 0
+    mock_products_collection.delete_one.return_value = delete_result
+
+    mock_conectar_bd.return_value = mock_db
+
+    response = client.delete("/products/999999")
+    assert response.status_code == 404
+    assert response.get_json() == {"error": "Product not found"}
