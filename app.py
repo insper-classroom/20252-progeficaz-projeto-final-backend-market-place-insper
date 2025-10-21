@@ -7,24 +7,41 @@ from datetime import datetime
 
 def create_app():
     app = Flask(__name__)
+
+# CORS = faz conexoes externas
     CORS(app, resources={
         r"/api/*": {
-            "origins": ["http://localhost:3000"],  
+            "origins": ["http://localhost:5173", "http://localhost:3000"],
             "methods": ["GET", "POST", "PUT", "DELETE"],
-            "allow_headers": ["Content-Type"]
+            "allow_headers": ["Content-Type", "Authorization"]
         }
     })
+
+
     app.config.from_object("config.Config")
     init_db(app)
     app.register_blueprint(items_bp, url_prefix="/api/items")
 
+    # verificar disponibilidade de redes
+    @app.route("/api/ping")
+    def ping():
+        return jsonify({"ok": True, "mensagem": "Conexão Flask OK"})
 
+    # Rota que retorna dados para a página Home (exemplo)
+    @app.route("/api/home")
+    def home_api():
+        return jsonify({
+            "titulo": "Página Home (vinda do Flask)",
+            "mensagem": "Seja bem-vindo ao backend conectado!"
+        })
+
+    # Garante fechamento de conexões quando o app encerrar contexto
     @app.teardown_appcontext
     def close_db(exception):
         client = getattr(app, "mongo_client", None)
         if client:
             client.close()
-            
+
     @app.route('/')
     def home():
         if request.method == 'POST':
@@ -60,6 +77,7 @@ class Product:
             "status": self.status,
             "created_at": self.created_at
         }
+
 
 if __name__ == "__main__":
     app = create_app()
