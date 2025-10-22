@@ -8,28 +8,35 @@ from datetime import datetime
 
 def create_app():
     app = Flask(__name__)
+    connect_db(app)
+    print('Banco de dados conectado com sucesso!')
 
 # CORS = faz conexoes externas
     CORS(app, resources={
-        r"/api/*": {
+        r"/*": {
             "origins": ["http://localhost:5173", "http://localhost:3000"],
             "methods": ["GET", "POST", "PUT", "DELETE"],
             "allow_headers": ["Content-Type", "Authorization"]
         }
     })
 
+    
+# registrando blueprint
+    from routes.items import items_blueprint
+    app.register_blueprint(items_blueprint, url_prefix="") # registra as rotas do items_blueprint no app principal
+    return app
 
     app.config.from_object("config.Config")
     connect_db(app)
     app.register_blueprint(items_blueprint, url_prefix="/")
 
     # verificar disponibilidade de redes
-    @app.route("/api/ping")
+    @app.route("/ping")
     def ping():
         return jsonify({"ok": True, "mensagem": "Conexão Flask OK"})
 
     # rota que retorna dados para a página
-    @app.route("/api/home")
+    @app.route("/home")
     def home_api():
         return jsonify({
             "titulo": "Página Home (vinda do Flask)",
@@ -116,15 +123,7 @@ def get_db():
 
 
 # ============================ APP SETUP ============================
-def create_app():
-    app = Flask(__name__)    
-    connect_db(app)
-    print('Banco de dados conectado com sucesso!')
-    
-# registrando blueprint
-    from routes.items import items_blueprint
-    app.register_blueprint(items_blueprint, url_prefix="") # registra as rotas do items_blueprint no app principal
-    return app
+
 
 # @app.teardown_appcontext
 # def close_db(exception):
