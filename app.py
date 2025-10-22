@@ -1,8 +1,8 @@
 
 from flask import Flask, redirect, url_for, request, jsonify, Blueprint
 from flask_cors import CORS
-from routes.items import items_bp
-from models.db import init_db
+from routes.items import items_blueprint
+
 from datetime import datetime
 
 
@@ -20,15 +20,15 @@ def create_app():
 
 
     app.config.from_object("config.Config")
-    init_db(app)
-    app.register_blueprint(items_bp, url_prefix="/api/items")
+    connect_db(app)
+    app.register_blueprint(items_blueprint, url_prefix="/")
 
     # verificar disponibilidade de redes
     @app.route("/api/ping")
     def ping():
         return jsonify({"ok": True, "mensagem": "Conexão Flask OK"})
 
-    # Rota que retorna dados para a página Home (exemplo)
+    # rota que retorna dados para a página
     @app.route("/api/home")
     def home_api():
         return jsonify({
@@ -53,17 +53,18 @@ def create_app():
 
 
 class Product:
-    def __init__(self, id, title, description, price, condition, photos, category_id, seller_id, status):
+    def __init__(self, id, title, description, price, condition, photos, category, seller_id, status, boosted):
         self.id = id
         self.title = title
         self.description = description
         self.price = price
         self.condition = condition
         self.photos = photos 
-        self.category_id = category_id
+        self.category = category
         self.seller_id = seller_id
         self.status = status
-        self.created_at = datetime.utcnow()
+        self.boosted = boosted
+        self.created_at = datetime.now()
 
     def to_dict(self):
         return {
@@ -73,9 +74,10 @@ class Product:
             "price": self.price,
             "condition": self.condition,
             "photos": self.photos,
-            "category_id": self.category_id,
+            "category": self.category,
             "seller_id": self.seller_id,
             "status": self.status,
+            "boosted": self.boosted,
             "created_at": self.created_at
         }
 
@@ -135,4 +137,4 @@ def create_app():
 
 if __name__ == "__main__":
     app = create_app()
-    app.run(debug=True)
+    app.run(host="127.0.0.1", port=5000, debug=True)
