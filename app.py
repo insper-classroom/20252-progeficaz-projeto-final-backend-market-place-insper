@@ -1,11 +1,13 @@
 
-from flask import Flask, redirect, url_for, request, jsonify, Blueprint
+from flask import Flask, redirect, url_for, request, jsonify, current_app, Blueprint
 from flask_cors import CORS
 from routes.items import items_blueprint
-
 from datetime import datetime
+from pymongo import MongoClient
+import os
+from dotenv import load_dotenv
 
-
+#  ============================ APP SETUP ============================
 def create_app():
     app = Flask(__name__)
     connect_db(app)
@@ -33,17 +35,17 @@ def create_app():
     # verificar disponibilidade de redes
     @app.route("/ping")
     def ping():
-        return jsonify({"ok": True, "mensagem": "Conexão Flask OK"})
+        return jsonify({"ok": True, "mensagem": "Conexão Flask funcionando!"})
 
     # rota que retorna dados para a página
     @app.route("/home")
     def home_api():
         return jsonify({
             "titulo": "Página Home (vinda do Flask)",
-            "mensagem": "Seja bem-vindo ao backend conectado!"
+            "mensagem": "Backend conectado!"
         })
 
-    # Garante fechamento de conexões quando o app encerrar contexto
+    # fechamento de conexões quando o app encerrar
     @app.teardown_appcontext
     def close_db(exception):
         client = getattr(app, "mongo_client", None)
@@ -59,6 +61,7 @@ def create_app():
     return app
 
 
+# ============================ CLASSES ============================
 class Product:
     def __init__(self, id, title, description, price, condition, photos, category, seller_id, status, boosted):
         self.id = id
@@ -89,13 +92,7 @@ class Product:
         }
 
 
-
-from flask import Flask, current_app, request
-from pymongo import MongoClient
-import os
-from flask import jsonify
-from dotenv import load_dotenv
-
+# ============================ DATABASE SETUP ============================
 # variáveis do banco de dados
 load_dotenv('.cred')
 MONGO_URI = os.getenv("MONGO_URI")
@@ -103,7 +100,7 @@ DB_NAME = os.getenv("DB_NAME")
 COLLECTION_USERS = os.getenv("COLLECTION_USERS")
 COLLECTION_ITEMS = os.getenv("COLLECTION_ITEMS")
 
-# ============================ DATABASE SETUP ============================
+
 def connect_db(app):
     try:
         # tenta conectar o cliente e banco de dados ao app
@@ -120,16 +117,6 @@ def connect_db(app):
 def get_db(): 
     print(f'Acessando banco de dados: {current_app.db.name}')
     return current_app.db # retorna o banco de dados atrelado ao app
-
-
-# ============================ APP SETUP ============================
-
-
-# @app.teardown_appcontext
-# def close_db(exception):
-#     client = getattr(app, "mongo_client", None)
-#     # if client:
-#     #     client.close()
 
 
 # ============================ RUN APP ============================
