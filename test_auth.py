@@ -211,7 +211,17 @@ def test_update_profile(mock_get_collection, client, mock_user):
 def test_change_password(mock_hash, mock_check, mock_get_collection, client, mock_user):
     """Testa alteração de senha"""
     mock_collection = MagicMock()
-    mock_collection.find_one.return_value = mock_user
+    
+    def get_novo_user(*args, **kwargs): # retorna uma nova cópia a cada chamada
+        return {
+            "_id": ObjectId("507f1f77bcf86cd799439011"),
+            "email": "test@al.insper.edu.br",
+            "name": "Test User",
+            "password": "hashed_password",
+            "is_active": True
+        }
+    
+    mock_collection.find_one.side_effect = get_novo_user # o side effect faz com que ele execute de novo a função a cada chamada, enquanto return_value retorna sempre o mesmo objeto
     mock_collection.update_one.return_value = MagicMock()
     mock_get_collection.return_value = mock_collection
     mock_check.return_value = True
@@ -233,7 +243,6 @@ def test_change_password(mock_hash, mock_check, mock_get_collection, client, moc
         headers={"Authorization": f"Bearer {token}"}
     )
     assert response.status_code == 200
-
 
 # ============================== VALIDAÇÃO EMAIL INSPER ==============================
 @patch("routes.auth.get_collection")
