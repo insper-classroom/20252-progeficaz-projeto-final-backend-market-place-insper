@@ -38,7 +38,6 @@ def get_items_from_db():
 def get_users_from_db():
     collection = get_collection(os.getenv("COLLECTION_USERS"))
     users = list(collection.find({}))
-    # Convertendo ObjectId para string para JSON serializable
     for user in users:
         user["_id"] = str(user["_id"])
     return users  
@@ -53,7 +52,6 @@ def get_items():
     print(f'Método: {request.method}')
     try:
         items = get_items_from_db()
-        print(items)
         return jsonify(items), 200
     except Exception as e:
         print(f"Erro ao listar itens: {e}")
@@ -79,11 +77,10 @@ def get_item(id):
 def get_items_by_category(category):
     """Lista itens por categoria"""
     try:
-        items_collection = get_collection(os.getenv("COLLECTION_ITEMS"))
-        items = list(items_collection.find({"category": category}))
-        for item in items:
-            item["_id"] = str(item["_id"])
-        return jsonify(items), 200
+        items = get_items_from_db()
+        # filtra os itens pela categoria
+        filtered_items = [item for item in items if item.get("category") == category]
+        return jsonify(filtered_items), 200
     except Exception as e:
         print(f"Erro ao buscar por categoria: {e}")
         return jsonify({"error": "Erro ao buscar itens"}), 500
@@ -93,11 +90,10 @@ def get_items_by_category(category):
 def get_items_by_seller(seller_id):
     """Lista itens por vendedor"""
     try:
-        items_collection = get_collection(os.getenv("COLLECTION_ITEMS"))
-        items = list(items_collection.find({"seller_id": seller_id}))
-        for item in items:
-            item["_id"] = str(item["_id"])
-        return jsonify(items), 200
+        items = get_items_from_db()
+        # filtra os itens pelo seller_id
+        filtered_items = [item for item in items if item.get("seller_id") == seller_id]
+        return jsonify(filtered_items), 200
     except Exception as e:
         print(f"Erro ao buscar por vendedor: {e}")
         return jsonify({"error": "Erro ao buscar itens"}), 500
@@ -117,6 +113,7 @@ def create_item():
         current_user_id = get_jwt_identity() # pega o id do user logado a partir do token
         users_collection = get_collection(os.getenv("COLLECTION_USERS"))
         current_user = users_collection.find_one({"_id": ObjectId(current_user_id)})
+        
         data["seller_id"] = current_user["_id"] # adds seller_id automaticamente do user autenticado
         data["created_at"] = datetime.now()
         data["status"] = data.get("status", "Ativo")
@@ -146,14 +143,14 @@ def update_item(id):
         
         # ver se o item existe e pertence ao usuário
         current_user_id = get_jwt_identity() # pega o id do user logado a partir do token
-
+        
         items_collection = get_collection(os.getenv("COLLECTION_ITEMS"))
         item = items_collection.find_one({"_id": ObjectId(id)})
         
         if not item:
             return jsonify({"error": "Product not found"}), 404
         
-        if item["seller_id"] != current_user_id:
+        if str(item["seller_id"]) != str(current_user_id):
             return jsonify({"error": "Não autorizado"}), 403
         
         # tirar campos que não devem atualizar
@@ -175,38 +172,31 @@ def update_item(id):
         print(f"Erro ao atualizar item: {e}")
         return jsonify({"error": "Erro ao atualizar"}), 400
     
-    return _update()
-
-
-
 
 # ========================================== DELETE ========================================== *
 @items_blueprint.route("/items/<id>", methods=["DELETE"])
+@jwt_required()
 def delete_item(id):
     """Remove item"""
-    token_required = token_required_import()
+    try:
+        #deletar item
+        current_user_id = get_jwt_identity() # pega o id do user logado a partir do token
+        
+        items_collection = get_collection(os.getenv("COLLECTION_ITEMS"))
+        
+        item = items_collection.find_one({"_id": ObjectId(id)})
+        if not item:
+            return jsonify({"error": "Product not found"}), 404
+        
+        if str(item["seller_id"]) != str(current_user_id):
+            return jsonify({"error": "Não autorizado"}), 403
+        
+        result = items_collection.delete_one({"_id": ObjectId(id)})
+        if result.deleted_count == 0:
+            return jsonify({"error": "Product not found"}), 404
+        return jsonify({"message": "Produto deletado com sucesso"}), 200
     
-    @token_required
-    def _delete(current_user):
-        try:
-            items_collection = get_collection(os.getenv("COLLECTION_ITEMS"))
-            item = items_collection.find_one({"_id": ObjectId(id)})
-            
-            if not item:
-                return jsonify({"error": "Product not found"}), 404
-            
-            if item["seller_id"] != current_user["_id"]:
-                return jsonify({"error": "Não autorizado"}), 403
-            
-            result = items_collection.delete_one({"_id": ObjectId(id)})
-            
-            if result.deleted_count == 0:
-                return jsonify({"error": "Product not found"}), 404
-            
-            return jsonify({"message": "Produto removido com sucesso"}), 200
-            
-        except Exception as e:
-            print(f"Erro ao deletar item: {e}")
-            return jsonify({"error": "Erro ao deletar"}), 400
-    
-    return _delete()
+    except Exception as e:
+        print(f"Erro ao deletar item: {e}")
+        return jsonify({"error": "Erro ao deletar"}), 400
+

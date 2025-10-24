@@ -265,3 +265,8 @@ def test_delete_item_not_found(mock_get_collection, client):
     response = client.delete("/items/507f1f77bcf86cd799439999")
     assert response.status_code == 404
     assert response.get_json() == {"error": "Product not found"}
+    
+    
+    
+    
+#TODO ARRUMAR TESTES DE ACORDO COM A MUDANÇA NO CÓDIGO
