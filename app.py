@@ -1,16 +1,49 @@
 
 from flask import Flask, redirect, url_for, request, jsonify, current_app, Blueprint
 from flask_cors import CORS
-from routes.items import items_blueprint
 from datetime import datetime
 from pymongo import MongoClient
 import os
 from dotenv import load_dotenv
+from utils import init_app
+# from mongoengine import Document, StringField, FloatField, ListField, DateTimeField, BooleanField
+
+# ============================ DATABASE SETUP ============================
+# guardando as variáveis do banco de dados
+load_dotenv('.cred')
+MONGO_URI = os.getenv("MONGO_URI")
+DB_NAME = os.getenv("DB_NAME")
+COLLECTION_USERS = os.getenv("COLLECTION_USERS")
+COLLECTION_ITEMS = os.getenv("COLLECTION_ITEMS")
+
+
+def connect_db(app):
+    try:
+        # tenta conectar o cliente e banco de dados ao app
+        client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=5000)
+        app.mongo_client = client
+        if DB_NAME:
+            app.db = client[DB_NAME]
+            print(f'Conectado ao banco de dados: {DB_NAME}')
+        else:
+            client.get_database(DB_NAME)
+    except Exception as e:
+        raise RuntimeError(f"Erro ao conectar ao banco de dados: {e}")
+    
+
+
+def get_db(): 
+    print(f'Acessando banco de dados: {current_app.db.name}')
+    return current_app.db # retorna o banco de dados atrelado ao app
+
 
 #  ============================ APP SETUP ============================
 def create_app():
     app = Flask(__name__)
     connect_db(app)
+    app = init_app(app)  # inicializa JWT e Bcrypt
+    app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET_KEY")
+    
     print('Banco de dados conectado com sucesso!')
 
 # CORS = faz conexoes externas
@@ -25,41 +58,10 @@ def create_app():
     
 # registrando blueprint
     from routes.items import items_blueprint
-    app.register_blueprint(items_blueprint, url_prefix="") # registra as rotas do items_blueprint no app principal
+    from routes.auth import auth_blueprint
+    app.register_blueprint(items_blueprint, url_prefix="")
+    app.register_blueprint(auth_blueprint, url_prefix="") # registra as rotas do items e auth _blueprint no app principal
     return app
-
-    app.config.from_object("config.Config")
-    connect_db(app)
-    app.register_blueprint(items_blueprint, url_prefix="/")
-
-    # verificar disponibilidade de redes
-    @app.route("/ping")
-    def ping():
-        return jsonify({"ok": True, "mensagem": "Conexão Flask funcionando!"})
-
-    # rota que retorna dados para a página
-    @app.route("/home")
-    def home_api():
-        return jsonify({
-            "titulo": "Página Home (vinda do Flask)",
-            "mensagem": "Backend conectado!"
-        })
-
-    # fechamento de conexões quando o app encerrar
-    @app.teardown_appcontext
-    def close_db(exception):
-        client = getattr(app, "mongo_client", None)
-        if client:
-            client.close()
-
-    @app.route('/')
-    def home():
-        if request.method == 'POST':
-            return jsonify({"redirect_url": url_for("login", _external=True)})
-        return jsonify({"redirect_url": url_for("home", _external=True)})
-
-    return app
-
 
 # ============================ CLASSES ============================
 class Product:
@@ -92,35 +94,7 @@ class Product:
         }
 
 
-# ============================ DATABASE SETUP ============================
-# guardando as variáveis do banco de dados
-load_dotenv('.cred')
-MONGO_URI = os.getenv("MONGO_URI")
-DB_NAME = os.getenv("DB_NAME")
-COLLECTION_USERS = os.getenv("COLLECTION_USERS")
-COLLECTION_ITEMS = os.getenv("COLLECTION_ITEMS")
-
-
-def connect_db(app):
-    try:
-        # tenta conectar o cliente e banco de dados ao app
-        client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=5000)
-        app.mongo_client = client
-        if DB_NAME:
-            app.db = client[DB_NAME]
-            print(f'Conectado ao banco de dados: {DB_NAME}')
-        else:
-            client.get_database(DB_NAME)
-    except Exception as e:
-        raise RuntimeError(f"Erro ao conectar ao banco de dados: {e}")
-
-def get_db(): 
-    print(f'Acessando banco de dados: {current_app.db.name}')
-    return current_app.db # retorna o banco de dados atrelado ao app
-
-
 # ============================ RUN APP ============================
-
 if __name__ == "__main__":
     app = create_app()
     app.run(host="127.0.0.1", port=5000, debug=True)
