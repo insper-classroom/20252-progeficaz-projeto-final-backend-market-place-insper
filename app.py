@@ -24,7 +24,9 @@ def create_app():
     
 # registrando blueprint
     from routes.items import items_blueprint
-    app.register_blueprint(items_blueprint, url_prefix="") # registra as rotas do items_blueprint no app principal
+    from routes.auth import auth_blueprint
+    app.register_blueprint(items_blueprint, url_prefix="")
+    app.register_blueprint(auth_blueprint, url_prefix="") # registra as rotas do items e auth _blueprint no app principal
     return app
 
     app.config.from_object("config.Config")

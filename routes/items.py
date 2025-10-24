@@ -22,6 +22,10 @@ def get_collection(name): # pega a coleção do banco de dados atrelado ao app p
     return current_app.db[name] 
 
 
+def token_required_import(): # importa o decorador token_required 
+    from routes.auth import token_required
+    return token_required
+
 # ============================ ROTAS ============================
 # * ========================================== GET ========================================== *
 @items_blueprint.route("/items", methods=["GET"])
@@ -86,62 +90,107 @@ def get_items_by_seller(seller_id):
 @items_blueprint.route("/items", methods=["POST"])
 def create_item():
     """Cria novo item"""
-    try:
-        data = request.get_json()
-        if not data or not data.get("title") or data.get("price", -1) <= 0: # check basico
-            return jsonify({"error": "Dados inválidos"}), 400
-        data["created_at"] = datetime.now() # timestamp
-        items_collection = get_collection(os.getenv("COLLECTION_ITEMS"))
-        result = items_collection.insert_one(data)
-        
-        return jsonify({
-            "message": "Produto criado com sucesso",
-            "id": str(result.inserted_id)
-        }), 201
-        
-    except Exception as e:
-        print(f"Erro ao criar item: {e}")
-        return jsonify({"error": "Erro ao criar item"}), 500
+    token_required = token_required_import()
+
+    @token_required
+    def _create(current_user):
+        try:
+            data = request.get_json()
+            
+            if not data or not data.get("title") or data.get("price", -1) <= 0: # validação básica
+                return jsonify({"error": "Dados inválidos"}), 400
+            
+            data["seller_id"] = current_user["_id"] # adds seller_id automaticamente do user autenticado
+            data["created_at"] = datetime.now()
+            data["status"] = data.get("status", "Ativo")
+            
+            items_collection = get_collection(os.getenv("COLLECTION_ITEMS"))
+            result = items_collection.insert_one(data)
+            
+            return jsonify({
+                "message": "Produto criado com sucesso",
+                "id": str(result.inserted_id)
+            }), 201
+            
+        except Exception as e:
+            print(f"Erro ao criar item: {e}")
+            return jsonify({"error": "Erro ao criar item"}), 500
+    
 
 # * ========================================== PUT ========================================== *
 @items_blueprint.route("/items/<id>", methods=["PUT"])
 def update_item(id):
     """Atualiza item existente"""
-    try:
-        data = request.get_json()
-        if not data:
-            return jsonify({"error": "Dados inválidos"}), 400
-        data.pop("_id", None) # tira _id 
-        
-        items_collection = get_collection(os.getenv("COLLECTION_ITEMS"))
-        result = items_collection.update_one(
-            {"_id": ObjectId(id)},
-            {"$set": data}
+    token_required = token_required_import()
+    
+    @token_required
+    def _update(current_user):
+        try:
+            data = request.get_json()
+            if not data:
+                return jsonify({"error": "Dados inválidos"}), 400
+            
+            # ver se o item existe e pertence ao usuário
+            items_collection = get_collection(os.getenv("COLLECTION_ITEMS"))
+            item = items_collection.find_one({"_id": ObjectId(id)})
+            
+            if not item:
+                return jsonify({"error": "Product not found"}), 404
+            
+            if item["seller_id"] != current_user["_id"]:
+                return jsonify({"error": "Não autorizado"}), 403
+            
+            # tirar campos que não devem atualizar
+            data.pop("_id", None)
+            data.pop("seller_id", None)
+            data.pop("created_at", None)
+            
+            result = items_collection.update_one(
+                {"_id": ObjectId(id)},
+                {"$set": data}
             )
+            
+            if result.matched_count == 0:
+                return jsonify({"error": "Product not found"}), 404
+            
+            return jsonify({"message": "Produto atualizado com sucesso"}), 200
+            
+        except Exception as e:
+            print(f"Erro ao atualizar item: {e}")
+            return jsonify({"error": "Erro ao atualizar"}), 400
+    
+    return _update()
 
-        if result.matched_count == 0:
-            return jsonify({"error": "Product not found"}), 404
-        
-        return jsonify({"message": "Produto atualizado com sucesso"}), 200
-        
-    except Exception as e:
-        print(f"Erro ao atualizar item: {e}")
-        return jsonify({"error": "ID inválido"}), 400
+
 
 
 # * ========================================== DELETE ========================================== *
 @items_blueprint.route("/items/<id>", methods=["DELETE"])
 def delete_item(id):
     """Remove item"""
-    try:
-        items_collection = get_collection(os.getenv("COLLECTION_ITEMS"))
-        result = items_collection.delete_one({"_id": ObjectId(id)})
-        
-        if result.deleted_count == 0:
-            return jsonify({"error": "Product not found"}), 404
-        
-        return jsonify({"message": "Produto removido com sucesso"}), 200
-        
-    except Exception as e:
-        print(f"Erro ao deletar item: {e}")
-        return jsonify({"error": "ID inválido"}), 400
+    token_required = token_required_import()
+    
+    @token_required
+    def _delete(current_user):
+        try:
+            items_collection = get_collection(os.getenv("COLLECTION_ITEMS"))
+            item = items_collection.find_one({"_id": ObjectId(id)})
+            
+            if not item:
+                return jsonify({"error": "Product not found"}), 404
+            
+            if item["seller_id"] != current_user["_id"]:
+                return jsonify({"error": "Não autorizado"}), 403
+            
+            result = items_collection.delete_one({"_id": ObjectId(id)})
+            
+            if result.deleted_count == 0:
+                return jsonify({"error": "Product not found"}), 404
+            
+            return jsonify({"message": "Produto removido com sucesso"}), 200
+            
+        except Exception as e:
+            print(f"Erro ao deletar item: {e}")
+            return jsonify({"error": "Erro ao deletar"}), 400
+    
+    return _delete()
