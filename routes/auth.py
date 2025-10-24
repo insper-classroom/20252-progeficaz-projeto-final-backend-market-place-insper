@@ -5,6 +5,7 @@ import os
 from functools import wraps
 from utils import bcrypt
 from flask_jwt_extended import create_access_token, get_jwt_identity, jwt_required
+import requests
 
 auth_blueprint = Blueprint("auth", __name__)
 
@@ -100,6 +101,33 @@ def login():
 def adm_route():
     current_user_email = get_jwt_identity() # pega o email do user logado a partir do token
     return jsonify(logged_in_as=current_user_email), 200
+
+
+# ============================ CEP API ROUTE ============================
+
+@auth_blueprint.route("/cep", methods=["POST"])
+def buscar_cep():
+    try:
+        data = request.get_json()
+        cep = data.get("cep")
+
+        if not cep:
+            return jsonify({"erro": "CEP não informado"}), 400
+
+        url = "https://api.cep.rest/"
+        payload = {"cep": cep}
+        headers = {"Content-Type": "application/json"}
+
+        response = requests.post(url, json=payload, headers=headers)
+        response_data = response.json()
+
+        return jsonify(response_data)
+
+    except Exception as e:
+        return jsonify({"erro": str(e)}), 500
+
+
+
 
 
 # # ==================== PERFIL ====================
