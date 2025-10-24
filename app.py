@@ -93,7 +93,7 @@ class Product:
 
 
 # ============================ DATABASE SETUP ============================
-# variáveis do banco de dados
+# guardando as variáveis do banco de dados
 load_dotenv('.cred')
 MONGO_URI = os.getenv("MONGO_URI")
 DB_NAME = os.getenv("DB_NAME")
