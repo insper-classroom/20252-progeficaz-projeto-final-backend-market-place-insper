@@ -1,4 +1,5 @@
 from flask import Blueprint, request, jsonify, current_app
+from flask_jwt_extended import jwt_required, get_jwt_identity # o primeiro pra sinalizar que precisa do token e o segundo pra pegar o user id do token
 from datetime import datetime
 from bson.objectid import ObjectId # serve para identificar documentos no MongoDB
 import os
@@ -21,26 +22,42 @@ def get_collection(name): # pega a coleção do banco de dados atrelado ao app p
     print(f'Acessando coleção: {name}')
     return current_app.db[name] 
 
-
 def token_required_import(): # importa o decorador token_required 
     from routes.auth import token_required
     return token_required
 
-# ============================ ROTAS ============================
-# * ========================================== GET ========================================== *
+def get_items_from_db():
+    collection = get_collection(os.getenv("COLLECTION_ITEMS"))
+    items = list(collection.find({}))
+    # Convertendo ObjectId para string para JSON serializable
+    for item in items:
+        item["_id"] = str(item["_id"])
+        item["seller_id"] = str(item["seller_id"])
+    return items  
+
+def get_users_from_db():
+    collection = get_collection(os.getenv("COLLECTION_USERS"))
+    users = list(collection.find({}))
+    # Convertendo ObjectId para string para JSON serializable
+    for user in users:
+        user["_id"] = str(user["_id"])
+    return users  
+
+
+# ~=~ ROTAS ~=~
+
+# ========================================== GET ========================================== *
 @items_blueprint.route("/items", methods=["GET"])
 def get_items():
     """Lista todos os itens"""
     print(f'Método: {request.method}')
     try:
-        items_collection = get_collection(os.getenv("COLLECTION_ITEMS")) # lista todos os docs da coleção
-        items = list(items_collection.find({})) # converte o cursor em lista
-        for item in items:    
-            item["_id"] = str(item["_id"]) # converte ObjectId em string
+        items = get_items_from_db()
+        print(items)
         return jsonify(items), 200
     except Exception as e:
         print(f"Erro ao listar itens: {e}")
-        return jsonify({"error": "Erro ao listar itens"}), 500 # erro interno do servidor
+        return jsonify({"error": "Erro ao listar itens"}), 500 # erro interno do serv
 
 
 @items_blueprint.route("/items/<id>", methods=["GET"])
@@ -86,85 +103,84 @@ def get_items_by_seller(seller_id):
         return jsonify({"error": "Erro ao buscar itens"}), 500
 
 
-# * ========================================== POST ========================================== *
+# ========================================== POST ========================================== *
 @items_blueprint.route("/items", methods=["POST"])
+@jwt_required() # indica que essa rota precisa de autenticação
 def create_item():
     """Cria novo item"""
-    token_required = token_required_import()
+    try:
+        data = request.get_json()
+        
+        if not data or not data.get("title") or data.get("price", -1) <= 0: # validação básica
+            return jsonify({"error": "Dados inválidos"}), 400
+        
+        current_user_id = get_jwt_identity() # pega o id do user logado a partir do token
+        users_collection = get_collection(os.getenv("COLLECTION_USERS"))
+        current_user = users_collection.find_one({"_id": ObjectId(current_user_id)})
+        data["seller_id"] = current_user["_id"] # adds seller_id automaticamente do user autenticado
+        data["created_at"] = datetime.now()
+        data["status"] = data.get("status", "Ativo")
+        
+        items_collection = get_collection(os.getenv("COLLECTION_ITEMS"))
+        result = items_collection.insert_one(data)
+        
+        return jsonify({
+            "message": "Produto criado com sucesso",
+            "id": str(result.inserted_id)
+        }), 201
+        
+    except Exception as e:
+        print(f"Erro ao criar item: {e}")
+        return jsonify({"error": "Erro ao criar item"}), 500
 
-    @token_required
-    def _create(current_user):
-        try:
-            data = request.get_json()
-            
-            if not data or not data.get("title") or data.get("price", -1) <= 0: # validação básica
-                return jsonify({"error": "Dados inválidos"}), 400
-            
-            data["seller_id"] = current_user["_id"] # adds seller_id automaticamente do user autenticado
-            data["created_at"] = datetime.now()
-            data["status"] = data.get("status", "Ativo")
-            
-            items_collection = get_collection(os.getenv("COLLECTION_ITEMS"))
-            result = items_collection.insert_one(data)
-            
-            return jsonify({
-                "message": "Produto criado com sucesso",
-                "id": str(result.inserted_id)
-            }), 201
-            
-        except Exception as e:
-            print(f"Erro ao criar item: {e}")
-            return jsonify({"error": "Erro ao criar item"}), 500
-    
 
-# * ========================================== PUT ========================================== *
+# ========================================== PUT ========================================== *
 @items_blueprint.route("/items/<id>", methods=["PUT"])
+@jwt_required() 
 def update_item(id):
     """Atualiza item existente"""
-    token_required = token_required_import()
-    
-    @token_required
-    def _update(current_user):
-        try:
-            data = request.get_json()
-            if not data:
-                return jsonify({"error": "Dados inválidos"}), 400
-            
-            # ver se o item existe e pertence ao usuário
-            items_collection = get_collection(os.getenv("COLLECTION_ITEMS"))
-            item = items_collection.find_one({"_id": ObjectId(id)})
-            
-            if not item:
-                return jsonify({"error": "Product not found"}), 404
-            
-            if item["seller_id"] != current_user["_id"]:
-                return jsonify({"error": "Não autorizado"}), 403
-            
-            # tirar campos que não devem atualizar
-            data.pop("_id", None)
-            data.pop("seller_id", None)
-            data.pop("created_at", None)
-            
-            result = items_collection.update_one(
-                {"_id": ObjectId(id)},
-                {"$set": data}
-            )
-            
-            if result.matched_count == 0:
-                return jsonify({"error": "Product not found"}), 404
-            
-            return jsonify({"message": "Produto atualizado com sucesso"}), 200
-            
-        except Exception as e:
-            print(f"Erro ao atualizar item: {e}")
-            return jsonify({"error": "Erro ao atualizar"}), 400
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({"error": "Dados inválidos"}), 400
+        
+        # ver se o item existe e pertence ao usuário
+        current_user_id = get_jwt_identity() # pega o id do user logado a partir do token
+
+        items_collection = get_collection(os.getenv("COLLECTION_ITEMS"))
+        item = items_collection.find_one({"_id": ObjectId(id)})
+        
+        if not item:
+            return jsonify({"error": "Product not found"}), 404
+        
+        if item["seller_id"] != current_user_id:
+            return jsonify({"error": "Não autorizado"}), 403
+        
+        # tirar campos que não devem atualizar
+        data.pop("_id", None)
+        data.pop("seller_id", None)
+        data.pop("created_at", None)
+        
+        result = items_collection.update_one(
+            {"_id": ObjectId(id)},
+            {"$set": data}
+        )
+        
+        if result.matched_count == 0:
+            return jsonify({"error": "Product not found"}), 404
+        
+        return jsonify({"message": "Produto atualizado com sucesso"}), 200
+        
+    except Exception as e:
+        print(f"Erro ao atualizar item: {e}")
+        return jsonify({"error": "Erro ao atualizar"}), 400
     
     return _update()
 
 
 
 
-# * ========================================== DELETE ========================================== *
+# ========================================== DELETE ========================================== *
 @items_blueprint.route("/items/<id>", methods=["DELETE"])
 def delete_item(id):
     """Remove item"""
