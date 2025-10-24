@@ -1,7 +1,6 @@
 
 from flask import Flask, redirect, url_for, request, jsonify, current_app, Blueprint
 from flask_cors import CORS
-from routes.items import items_blueprint
 from datetime import datetime
 from pymongo import MongoClient
 import os
@@ -44,6 +43,14 @@ def create_app():
             "titulo": "Página Home (vinda do Flask)",
             "mensagem": "Backend conectado!"
         })
+        
+    @app.route('/')
+    def home():
+        return jsonify({
+            "status": "online",
+            "message": "API Marketplace Insper"
+        })
+
 
     # fechamento de conexões quando o app encerrar
     @app.teardown_appcontext
@@ -51,12 +58,6 @@ def create_app():
         client = getattr(app, "mongo_client", None)
         if client:
             client.close()
-
-    @app.route('/')
-    def home():
-        if request.method == 'POST':
-            return jsonify({"redirect_url": url_for("login", _external=True)})
-        return jsonify({"redirect_url": url_for("home", _external=True)})
 
     return app
 
