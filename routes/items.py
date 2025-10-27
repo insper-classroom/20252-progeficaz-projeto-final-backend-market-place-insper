@@ -46,19 +46,23 @@ def get_users_from_db():
 # ~=~ ROTAS ~=~
 
 # ========================================== GET ========================================== *
-@items_blueprint.route("/items", methods=["GET"])
+#TODO fazer essa rota listar: emDestaque, eletronicos, eletrodomesticos, moveis, outros
+#TODO enviar arrays para o frontend com os produtos em destaque e por categoria
+
+@items_blueprint.route("/", methods=["GET"])
 def get_items():
     """Lista todos os itens"""
     print(f'Método: {request.method}')
     try:
         items = get_items_from_db()
+        # em_destaque = items.query(lambda x: x.get("boosted") == True)
         return jsonify(items), 200
     except Exception as e:
         print(f"Erro ao listar itens: {e}")
         return jsonify({"error": "Erro ao listar itens"}), 500 # erro interno do serv
 
 
-@items_blueprint.route("/items/<id>", methods=["GET"])
+@items_blueprint.route("/<id>", methods=["GET"])
 def get_item(id):
     """Busca item por ID"""
     try:
@@ -73,7 +77,7 @@ def get_item(id):
         return jsonify({"error": "ID inválido"}), 400 # bad request 
     
 
-@items_blueprint.route("/items/category/<category>", methods=["GET"])
+@items_blueprint.route("/category/<category>", methods=["GET"])
 def get_items_by_category(category):
     """Lista itens por categoria"""
     try:
@@ -86,7 +90,7 @@ def get_items_by_category(category):
         return jsonify({"error": "Erro ao buscar itens"}), 500
 
 
-@items_blueprint.route("/items/seller/<seller_id>", methods=["GET"])
+@items_blueprint.route("/seller/<seller_id>", methods=["GET"])
 def get_items_by_seller(seller_id):
     """Lista itens por vendedor"""
     try:
@@ -100,7 +104,7 @@ def get_items_by_seller(seller_id):
 
 
 # ========================================== POST ========================================== *
-@items_blueprint.route("/items", methods=["POST"])
+@items_blueprint.route("/", methods=["POST"])
 @jwt_required() # indica que essa rota precisa de autenticação
 def create_item():
     """Cria novo item"""
@@ -132,7 +136,7 @@ def create_item():
 
 
 # ========================================== PUT ========================================== *
-@items_blueprint.route("/items/<id>", methods=["PUT"])
+@items_blueprint.route("item/<id>", methods=["PUT"])
 @jwt_required() 
 def update_item(id):
     """Atualiza item existente"""
@@ -174,7 +178,7 @@ def update_item(id):
     
 
 # ========================================== DELETE ========================================== *
-@items_blueprint.route("/items/<id>", methods=["DELETE"])
+@items_blueprint.route("/<id>", methods=["DELETE"])
 @jwt_required()
 def delete_item(id):
     """Remove item"""

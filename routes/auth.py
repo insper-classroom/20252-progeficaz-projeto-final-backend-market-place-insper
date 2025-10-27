@@ -18,7 +18,7 @@ def get_collection(name):
 def register():
     try: 
         data = request.get_json()
-        campos_obrigatorios = ["email", "password", "name"]
+        campos_obrigatorios = ["email", "password", "name", 'satus']
         #todo verificar se todos os campos obrigatórios do diagrama estão aqui
         for campo in campos_obrigatorios:
             if campo not in data:
@@ -40,6 +40,7 @@ def register():
             "name": data["name"],
             "phone": data.get("phone"),
             "created_at": datetime.now(),
+            "status": data.get("status"),
             "is_active": True
         }
         
@@ -128,16 +129,17 @@ def buscar_cep():
 
 
 
+#TODO Implementar as rotas de user/<user_id>; user/<user_id>/compras, user/<user_id>/vendas;
 
 
 # # ==================== PERFIL ====================
-# @auth_blueprint.route("/me", methods=["GET"])
+# @auth_blueprint.route("/user/<user_id>", methods=["GET"])
 # @token_required
 # def get_profile(current_user):
 #     return jsonify(current_user), 200
 
 
-# @auth_blueprint.route("/me", methods=["PUT"])
+# @auth_blueprint.route("/user/<user_id>", methods=["PUT"])
 # @token_required
 # def update_profile(current_user):
 #     try:
