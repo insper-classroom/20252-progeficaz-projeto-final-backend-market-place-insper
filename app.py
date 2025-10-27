@@ -63,35 +63,36 @@ def create_app():
     app.register_blueprint(auth_blueprint, url_prefix="") # registra as rotas do items e auth _blueprint no app principal
     return app
 
-# ============================ CLASSES ============================
-class Product:
-    def __init__(self, id, title, description, price, condition, photos, category, seller_id, status, boosted):
-        self.id = id
-        self.title = title
-        self.description = description
-        self.price = price
-        self.condition = condition
-        self.photos = photos 
-        self.category = category
-        self.seller_id = seller_id
-        self.status = status
-        self.boosted = boosted
-        self.created_at = datetime.now()
+# # ============================ CLASSES ============================
+#TODO ver se vai usar ou não essas classes
+# class Product:
+#     def __init__(self, id, title, description, price, condition, photos, category, seller_id, status, boosted):
+#         self.id = id
+#         self.title = title
+#         self.description = description
+#         self.price = price
+#         self.condition = condition
+#         self.photos = photos 
+#         self.category = category
+#         self.seller_id = seller_id
+#         self.status = status
+#         self.boosted = boosted
+#         self.created_at = datetime.now()
 
-    def to_dict(self):
-        return {
-            "id": self.id,
-            "title": self.title,
-            "description": self.description,
-            "price": self.price,
-            "condition": self.condition,
-            "photos": self.photos,
-            "category": self.category,
-            "seller_id": self.seller_id,
-            "status": self.status,
-            "boosted": self.boosted,
-            "created_at": self.created_at
-        }
+#     def to_dict(self):
+#         return {
+#             "id": self.id,
+#             "title": self.title,
+#             "description": self.description,
+#             "price": self.price,
+#             "condition": self.condition,
+#             "photos": self.photos,
+#             "category": self.category,
+#             "seller_id": self.seller_id,
+#             "status": self.status,
+#             "boosted": self.boosted,
+#             "created_at": self.created_at
+#         }
 
 
 # ============================ RUN APP ============================
