@@ -28,12 +28,28 @@ def token_required_import(): # importa o decorador token_required
 
 def get_items_from_db():
     collection = get_collection(os.getenv("COLLECTION_ITEMS"))
-    items = list(collection.find({}))
-    # Convertendo ObjectId para string para JSON serializable
-    for item in items:
-        item["_id"] = str(item["_id"])
-        item["seller_id"] = str(item["seller_id"])
-    return items  
+    
+    emdestaque = list(collection.find({"boosted": True}))
+    eletronicos = list(collection.find({"category": "Eletrônicos"}))
+    eletrodomesticos = list(collection.find({"category": "Eletrodomésticos"}))
+    moveis = list(collection.find({"category": "Móveis"}))
+    outros = list(collection.find({"category": "Outros"}))
+    
+    # Função auxiliar pra converter ObjectId -> str
+    def convert_ids(lista):
+        for item in lista:
+            item["_id"] = str(item["_id"])
+            if "seller_id" in item and item["seller_id"] is not None:
+                item["seller_id"] = str(item["seller_id"])
+        return lista
+
+    return {
+        "emDestaque": convert_ids(emdestaque),
+        "eletronicos": convert_ids(eletronicos),
+        "eletrodomesticos": convert_ids(eletrodomesticos),
+        "moveis": convert_ids(moveis),
+        "outros": convert_ids(outros),
+    }
 
 def get_users_from_db():
     collection = get_collection(os.getenv("COLLECTION_USERS"))
@@ -51,15 +67,13 @@ def get_users_from_db():
 
 @items_blueprint.route("/", methods=["GET"])
 def get_items():
-    """Lista todos os itens"""
-    print(f'Método: {request.method}')
+    """Lista todos os itens por categoria"""
     try:
         items = get_items_from_db()
-        # em_destaque = items.query(lambda x: x.get("boosted") == True)
         return jsonify(items), 200
     except Exception as e:
         print(f"Erro ao listar itens: {e}")
-        return jsonify({"error": "Erro ao listar itens"}), 500 # erro interno do serv
+        return jsonify({"error": "Erro ao listar itens"}), 500
 
 
 @items_blueprint.route("/<id>", methods=["GET"])
