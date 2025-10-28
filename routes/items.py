@@ -123,6 +123,29 @@ def get_items_by_seller(seller_id):
         return jsonify({"error": "Erro ao buscar itens"}), 500
 
 
+@items_blueprint.route("/seller/phone/<seller_id>", methods=["GET"])
+def get_seller_phone(seller_id):
+    """Retorna o número de telefone do vendedor"""
+    try:
+        users_collection = get_collection(os.getenv("COLLECTION_USERS"))
+        seller = users_collection.find_one({"_id": ObjectId(seller_id)})
+        
+        if not seller:
+            return jsonify({"error": "Vendedor não encontrado"}), 404
+            
+        # Assumindo que o número está armazenado no campo 'phone'
+        phone = seller.get("phone", "Número não disponível")
+        
+        return jsonify({
+            "seller_id": str(seller["_id"]),
+            "phone": phone
+        }), 200
+        
+    except Exception as e:
+        print(f"Erro ao buscar número do vendedor: {e}")
+        return jsonify({"error": "Erro ao buscar número do vendedor"}), 500
+
+
 # ========================================== POST ========================================== *
 @items_blueprint.route("/", methods=["POST"])
 @jwt_required()
