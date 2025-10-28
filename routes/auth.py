@@ -19,8 +19,8 @@ def register():
     try:
         data = request.get_json() or {}
 
-        # campos obrigatórios no nível raiz
-        campos_obrigatorios = ["email", "password", "name"]
+        # campos obrigatórios no nível raiz (agora inclui telefone)
+        campos_obrigatorios = ["email", "password", "name", "phone"]
         for campo in campos_obrigatorios:
             if not data.get(campo):
                 return jsonify({"error": f"Campo '{campo}' é obrigatório"}), 400
@@ -33,12 +33,18 @@ def register():
         if len(data.get("password", "")) < 6:
             return jsonify({"error": "Senha deve ter pelo menos 6 caracteres"}), 400
 
+        # valida telefone obrigatório (somente números e 10–11 dígitos)
+        raw_phone = str(data.get("phone", "")).strip()
+        phone_clean = "".join([c for c in raw_phone if c.isdigit()])
+        if not phone_clean or len(phone_clean) not in (10, 11):
+            return jsonify({"error": "Telefone inválido. Use apenas números com DDD (10 ou 11 dígitos)."}), 400
+
         # endereco esperado como subdocumento
         endereco = data.get("endereco") or {}
         if not isinstance(endereco, dict):
             return jsonify({"error": "Campo 'endereco' inválido ou ausente"}), 400
 
-        # limpa CEP: só dígitos (mantemos só a limpeza — se necessário, só retiramos caracteres no CEP)
+        # limpa CEP: só dígitos
         raw_cep = str(endereco.get("cep") or "")
         cep_clean = "".join([c for c in raw_cep if c.isdigit()])
         if not cep_clean or len(cep_clean) != 8:
@@ -49,7 +55,7 @@ def register():
         if users_collection.find_one({"email": email}):
             return jsonify({"error": "Email já cadastrado"}), 409
 
-        # normaliza strings simples (remover espaços extras)
+        # normaliza strings simples (remove espaços extras)
         def clean(s):
             try:
                 return str(s).strip()
@@ -70,7 +76,7 @@ def register():
             "email": email,
             "password": bcrypt.generate_password_hash(data["password"]),
             "name": clean(data.get("name")),
-            "phone": data.get("phone"),
+            "phone": phone_clean,  # telefone limpo e validado
             "created_at": datetime.now(),
             "status": data.get("status"),
             "is_active": True,
@@ -94,6 +100,7 @@ def register():
     except Exception as e:
         print(f"Erro no registro: {e}")
         return jsonify({"error": "Erro ao criar usuário"}), 500
+
 
 
 
