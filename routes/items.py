@@ -1,10 +1,13 @@
-from flask import Blueprint, request, jsonify, current_app
+from flask import Blueprint, request, jsonify, current_app, send_from_directory
 from flask_jwt_extended import jwt_required, get_jwt_identity # o primeiro pra sinalizar que precisa do token e o segundo pra pegar o user id do token
 from datetime import datetime
 from bson.objectid import ObjectId # serve para identificar documentos no MongoDB
+from werkzeug.utils import secure_filename
 import os
 
 items_blueprint = Blueprint("items", __name__)
+UPLOAD_FOLDER = "uploads"
+ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "gif"}
 '''
 BLUEPRINT
 -> É um componente reutilizável que junta rotas, modelos etc.
@@ -21,6 +24,9 @@ Definindo as rotas:
 def get_collection(name): # pega a coleção do banco de dados atrelado ao app pelo nome
     print(f'Acessando coleção: {name}')
     return current_app.db[name] 
+
+def allowed_file(filename):
+    return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
 
 def token_required_import(): # importa o decorador token_required 
     from routes.auth import token_required
@@ -119,35 +125,69 @@ def get_items_by_seller(seller_id):
 
 # ========================================== POST ========================================== *
 @items_blueprint.route("/", methods=["POST"])
-@jwt_required() # indica que essa rota precisa de autenticação
+@jwt_required()
 def create_item():
-    """Cria novo item"""
+    """Cria novo item com upload de imagem"""
     try:
-        data = request.get_json()
-        
-        if not data or not data.get("title") or data.get("price", -1) <= 0: # validação básica
+        # Obtém dados do formulário
+        title = request.form.get("title")
+        description = request.form.get("description")
+        price = float(request.form.get("price", 0))
+        category = request.form.get("category")
+        condition = request.form.get("condition")
+        image = request.files.get("image")
+
+        if not title or price <= 0 or not image:
             return jsonify({"error": "Dados inválidos"}), 400
-        
-        current_user_id = get_jwt_identity() # pega o id do user logado a partir do token
+
+        if not allowed_file(image.filename):
+            return jsonify({"error": "Formato de imagem inválido"}), 400
+
+        # Cria pasta se não existir
+        os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
+        # Salva a imagem localmente
+        filename = secure_filename(image.filename)
+        filepath = os.path.join(UPLOAD_FOLDER, filename)
+        image.save(filepath)
+
+        # Gera a URL acessível da imagem
+        image_url = f"http://localhost:5000/{UPLOAD_FOLDER}/{filename}"
+
+        # Pega o usuário autenticado
+        current_user_id = get_jwt_identity()
         users_collection = get_collection(os.getenv("COLLECTION_USERS"))
         current_user = users_collection.find_one({"_id": ObjectId(current_user_id)})
-        
-        data["seller_id"] = current_user["_id"] # adds seller_id automaticamente do user autenticado
-        data["created_at"] = datetime.now()
-        data["status"] = data.get("status", "Ativo")
-        
+
+        # Salva o produto no banco
         items_collection = get_collection(os.getenv("COLLECTION_ITEMS"))
-        result = items_collection.insert_one(data)
-        
+        new_item = {
+            "title": title,
+            "description": description,
+            "price": price,
+            "category": category,
+            "condition": condition,
+            "images": [image_url],  # 👈 importante: campo que o front vai usar
+            "seller_id": current_user["_id"],
+            "created_at": datetime.now(),
+            "status": "Ativo",
+        }
+
+        result = items_collection.insert_one(new_item)
+
         return jsonify({
             "message": "Produto criado com sucesso",
-            "id": str(result.inserted_id)
+            "id": str(result.inserted_id),
+            "image_url": image_url
         }), 201
-        
+
     except Exception as e:
         print(f"Erro ao criar item: {e}")
         return jsonify({"error": "Erro ao criar item"}), 500
-
+    
+@items_blueprint.route("/uploads/<path:filename>")
+def serve_uploaded_image(filename):
+    return send_from_directory(UPLOAD_FOLDER, filename)
 
 # ========================================== PUT ========================================== *
 @items_blueprint.route("item/<id>", methods=["PUT"])
