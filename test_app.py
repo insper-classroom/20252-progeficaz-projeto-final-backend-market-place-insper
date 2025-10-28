@@ -1,3 +1,4 @@
+from io import BytesIO
 import pytest
 from unittest.mock import MagicMock, patch
 from bson.objectid import ObjectId
@@ -195,6 +196,37 @@ def test_create_item_invalid_data(mock_get_collection, client):
         assert response.status_code == 400
         assert response.get_json() == {"error": "Dados inválidos"}
 
+@patch("routes.items.get_collection")
+def test_create_item_with_image(mock_get_collection, client):
+    """Testa criação de item com upload de imagem"""
+    mock_collection = MagicMock()
+    mock_result = MagicMock()
+    mock_result.inserted_id = ObjectId("507f1f77bcf86cd799439011")
+    mock_collection.insert_one.return_value = mock_result
+    mock_get_collection.return_value = mock_collection
+
+    # Simula um arquivo de imagem em memória
+    fake_image = (BytesIO(b"fake image data"), "produto_teste.jpg")
+
+    data = {
+        "title": "Câmera Canon",
+        "description": "Excelente qualidade",
+        "price": "2999.99",
+        "condition": "Novo",
+        "category": "Eletrônicos",
+    }
+
+    response = client.post(
+        "/",  # rota de criação de produto
+        data={**data, "image": fake_image},
+        content_type="multipart/form-data"
+    )
+
+    assert response.status_code == 201
+    result = response.get_json()
+    assert result["message"] == "Produto criado com sucesso"
+    assert "image_url" in result
+    assert mock_collection.insert_one.call_count == 1
 
 # ============================== PUT TESTS ==============================
 @patch("routes.items.get_collection")
