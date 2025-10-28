@@ -184,11 +184,6 @@ def buscar_cep():
         return jsonify({"erro": str(e)}), 500
 
 
-
-
-#TODO Implementar as rotas de user/<user_id>; user/<user_id>/compras, user/<user_id>/vendas;
-
-
 # # ==================== PERFIL ====================
 @auth_blueprint.route("/user/<user_id>", methods=["GET"])
 @jwt_required()
@@ -206,7 +201,7 @@ def get_profile(user_id):
 
 
 # @auth_blueprint.route("/user/<user_id>", methods=["PUT"])
-# @jwt_required
+# @jwt_required()
 # def update_profile(current_user):
 #     try:
 #         data = request.get_json()
@@ -303,4 +298,3 @@ def get_compras(user_id):
 #     except Exception as e:
 #         print(f"Erro ao alterar senha: {e}")
 #         return jsonify({"error": "Erro ao alterar senha"}), 500
-    
