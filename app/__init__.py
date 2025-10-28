@@ -1,4 +1,5 @@
 from flask import Flask
+from flask_cors import CORS
 from .extensions import init_db, init_jwt
 from .routes.auth import bp as auth_bp
 from .routes.products import bp as products_bp
@@ -7,7 +8,10 @@ from dotenv import load_dotenv
 
 def create_app(config_object=None):
     app = Flask(__name__, instance_relative_config=False)
-    
+
+    # Enable CORS for all routes and origins
+    CORS(app, resources={r"/*": {"origins": "*"}})
+
     # load .env into environment
     load_dotenv()
 
