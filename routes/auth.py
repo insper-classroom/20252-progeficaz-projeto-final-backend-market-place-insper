@@ -16,38 +16,71 @@ def get_collection(name):
 # ============================ ROTAS ============================
 @auth_blueprint.route("/register", methods=["POST"])
 def register():
-    try: 
-        data = request.get_json()
-        campos_obrigatorios = ["email", "password", "name", 'satus']
-        #todo verificar se todos os campos obrigatórios do diagrama estão aqui
+    try:
+        data = request.get_json() or {}
+
+        # campos obrigatórios no nível raiz
+        campos_obrigatorios = ["email", "password", "name"]
         for campo in campos_obrigatorios:
-            if campo not in data:
+            if not data.get(campo):
                 return jsonify({"error": f"Campo '{campo}' é obrigatório"}), 400
-        
-        if not data['email'].endswith("@al.insper.edu.br"):
-            return jsonify({"error": "E-mail deve ser do Insper"}), 400
-        
-        if len(data["password"]) < 6:
+
+        # valida email Insper (aceita ambos os domínios já que o front valida ambos)
+        email = str(data.get("email", "")).strip()
+        if not (email.endswith("@al.insper.edu.br") or email.endswith("@insper.edu.br")):
+            return jsonify({"error": "E-mail deve ser do Insper (@al.insper.edu.br ou @insper.edu.br)"}), 400
+
+        if len(data.get("password", "")) < 6:
             return jsonify({"error": "Senha deve ter pelo menos 6 caracteres"}), 400
-            
+
+        # endereco esperado como subdocumento
+        endereco = data.get("endereco") or {}
+        if not isinstance(endereco, dict):
+            return jsonify({"error": "Campo 'endereco' inválido ou ausente"}), 400
+
+        # limpa CEP: só dígitos (mantemos só a limpeza — se necessário, só retiramos caracteres no CEP)
+        raw_cep = str(endereco.get("cep") or "")
+        cep_clean = "".join([c for c in raw_cep if c.isdigit()])
+        if not cep_clean or len(cep_clean) != 8:
+            return jsonify({"error": "CEP inválido. Deve conter 8 dígitos."}), 400
+
         users_collection = get_collection(os.getenv("COLLECTION_USERS"))
-        if users_collection.find_one({"email": data["email"]}):
+
+        if users_collection.find_one({"email": email}):
             return jsonify({"error": "Email já cadastrado"}), 409
-            
+
+        # normaliza strings simples (remover espaços extras)
+        def clean(s):
+            try:
+                return str(s).strip()
+            except:
+                return ""
+
+        endereco_normalizado = {
+            "cep": cep_clean,
+            "logradouro": clean(endereco.get("logradouro")),
+            "numero": clean(endereco.get("numero")),
+            "complemento": clean(endereco.get("complemento")),
+            "bairro": clean(endereco.get("bairro")),
+            "cidade": clean(endereco.get("cidade")),
+            "estado": clean(endereco.get("estado")),
+        }
+
         user = {
-            "email": data["email"],
+            "email": email,
             "password": bcrypt.generate_password_hash(data["password"]),
-            "name": data["name"],
+            "name": clean(data.get("name")),
             "phone": data.get("phone"),
             "created_at": datetime.now(),
             "status": data.get("status"),
-            "is_active": True
+            "is_active": True,
+            "endereco": endereco_normalizado
         }
-        
+
         result = users_collection.insert_one(user)
-        user = users_collection.find_one({"email": data["email"]})
-        token = create_access_token(identity=user['_id'].__str__())
-               
+        user = users_collection.find_one({"_id": result.inserted_id})
+        token = create_access_token(identity=str(user['_id']))
+
         return jsonify({
             "message": "Usuário criado com sucesso",
             "token": token,
@@ -57,10 +90,12 @@ def register():
                 "name": user["name"]
             }
         }), 201
-            
+
     except Exception as e:
         print(f"Erro no registro: {e}")
         return jsonify({"error": "Erro ao criar usuário"}), 500
+
+
 
 
 # ============================ LOGIN ============================
@@ -109,23 +144,45 @@ def adm_route():
 @auth_blueprint.route("/cep", methods=["POST"])
 def buscar_cep():
     try:
-        data = request.get_json()
-        cep = data.get("cep")
-
-        if not cep:
+        data = request.get_json() or {}
+        raw_cep = data.get("cep")
+        if not raw_cep:
             return jsonify({"erro": "CEP não informado"}), 400
 
-        url = "https://api.cep.rest/"
-        payload = {"cep": cep}
-        headers = {"Content-Type": "application/json"}
+        # limpa CEP: só dígitos
+        cep = "".join([c for c in str(raw_cep) if c.isdigit()])
 
-        response = requests.post(url, json=payload, headers=headers)
-        response_data = response.json()
+        if len(cep) != 8:
+            return jsonify({"erro": "CEP inválido. Deve conter 8 dígitos."}), 400
 
-        return jsonify(response_data)
+        # ViaCEP (GET) - resposta JSON consistente
+        url = f"https://viacep.com.br/ws/{cep}/json/"
+
+        resp = requests.get(url, timeout=5)
+        if resp.status_code != 200:
+            return jsonify({"erro": f"Erro ao consultar ViaCEP (status {resp.status_code})"}), 502
+
+        data_cep = resp.json()
+
+        # ViaCEP devolve {"erro": true} quando não encontra
+        if data_cep.get("erro"):
+            return jsonify({"erro": "CEP não encontrado"}), 404
+
+        # mapeia para um formato previsível
+        resultado = {
+            "cep": data_cep.get("cep", ""),
+            "logradouro": data_cep.get("logradouro", ""),
+            "bairro": data_cep.get("bairro", ""),
+            "cidade": data_cep.get("localidade", ""),
+            "estado": data_cep.get("uf", "")
+        }
+
+        return jsonify(resultado), 200
 
     except Exception as e:
+        print(f"Erro buscar_cep: {e}")
         return jsonify({"erro": str(e)}), 500
+
 
 
 
