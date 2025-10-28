@@ -184,20 +184,24 @@ def buscar_cep():
         return jsonify({"erro": str(e)}), 500
 
 
-
-
-#TODO Implementar as rotas de user/<user_id>; user/<user_id>/compras, user/<user_id>/vendas;
-
-
 # # ==================== PERFIL ====================
-# @auth_blueprint.route("/user/<user_id>", methods=["GET"])
-# @token_required
-# def get_profile(current_user):
-#     return jsonify(current_user), 200
+@auth_blueprint.route("/user/<user_id>", methods=["GET"])
+@jwt_required()
+def get_profile(user_id):
+    try:
+        user_collection = get_collection(os.getenv("COLLECTION_USERS"))
+        doc = user_collection.find_one({"_id": ObjectId(user_id)})
+        if not doc:
+            return jsonify({"error": "User not found"}), 404
+        doc["_id"] = str(doc["_id"])
+        return jsonify(doc), 200
+    except Exception as e:
+        print(f"Erro ao buscar usuário: {e}")
+        return jsonify({"error": "ID inválido"}), 400
 
 
 # @auth_blueprint.route("/user/<user_id>", methods=["PUT"])
-# @token_required
+# @jwt_required()
 # def update_profile(current_user):
 #     try:
 #         data = request.get_json()
@@ -222,7 +226,7 @@ def buscar_cep():
 
 # # ==================== VENDAS ====================
 @auth_blueprint.route("/user/<user_id>/vendas", methods=["GET"])
-@jwt_required
+@jwt_required()
 def get_vendas(user_id):
     collection = get_collection(os.getenv("COLLECTION_ITEMS"))
 
@@ -245,7 +249,7 @@ def get_vendas(user_id):
 
 # # ==================== COMPRAS ====================
 @auth_blueprint.route("/user/<user_id>/compras", methods=["GET"])
-@jwt_required
+@jwt_required()
 def get_compras(user_id):
     collection = get_collection(os.getenv("COLLECTION_ITEMS"))
     
@@ -294,4 +298,3 @@ def get_compras(user_id):
 #     except Exception as e:
 #         print(f"Erro ao alterar senha: {e}")
 #         return jsonify({"error": "Erro ao alterar senha"}), 500
-    
