@@ -163,6 +163,49 @@ def buscar_cep():
 #         print(f"Erro ao atualizar perfil: {e}")
 #         return jsonify({"error": "Erro ao atualizar perfil"}), 500
 
+# # ==================== VENDAS ====================
+@auth_blueprint.route("/user/<user_id>/vendas", methods=["GET"])
+@jwt_required
+def get_vendas(user_id):
+    collection = get_collection(os.getenv("COLLECTION_ITEMS"))
+
+    avenda = list(collection.find({"seller_id": user_id, "status": "avenda"}))
+    andamento = list(collection.find({"seller_id": user_id, "status": "emandamento"}))
+    finalizada = list(collection.find({"seller_id": user_id, "status": "finalizada"}))
+
+    def convert_ids(lista):
+        for item in lista:
+            item["_id"] = str(item["_id"])
+            if "seller_id" in item and item["seller_id"] is not None:
+                item["seller_id"] = str(item["seller_id"])
+        return lista
+
+    return {
+        "avenda": convert_ids(avenda),
+        "andamento": convert_ids(andamento),
+        "finalizada": convert_ids(finalizada),
+    }
+
+# # ==================== COMPRAS ====================
+@auth_blueprint.route("/user/<user_id>/compras", methods=["GET"])
+@jwt_required
+def get_compras(user_id):
+    collection = get_collection(os.getenv("COLLECTION_ITEMS"))
+    
+    andamento = list(collection.find({"buyer_id": user_id, "status": "emandamento"}))
+    finalizada = list(collection.find({"buyer_id": user_id, "status": "finalizada"}))
+
+    def convert_ids(lista):
+        for item in lista:
+            item["_id"] = str(item["_id"])
+            if "buyer_id" in item and item["buyer_id"] is not None:
+                item["buyer_id"] = str(item["buyer_id"])
+        return lista
+
+    return {
+        "andamento": convert_ids(andamento),
+        "finalizada": convert_ids(finalizada),
+    }
 
 # # ==================== ALTERAR SENHA ====================
 # @auth_blueprint.route("/change-password", methods=["PUT"])
