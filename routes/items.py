@@ -125,10 +125,12 @@ def get_items_by_seller(seller_id):
 
 # ========================================== POST ========================================== *
 @items_blueprint.route("/", methods=["POST"])
-@jwt_required()
+# @jwt_required()
 def create_item():
     """Cria novo item com upload de imagem"""
     try:
+        print("FORM =>", request.form)
+        print("FILES =>", request.files)
         # Obtém dados do formulário
         title = request.form.get("title")
         description = request.form.get("description")
@@ -154,10 +156,11 @@ def create_item():
         # Gera a URL acessível da imagem
         image_url = f"http://localhost:5000/{UPLOAD_FOLDER}/{filename}"
 
+        current_user = {"_id": ObjectId("507f1f77bcf86cd799439011")}
         # Pega o usuário autenticado
-        current_user_id = get_jwt_identity()
-        users_collection = get_collection(os.getenv("COLLECTION_USERS"))
-        current_user = users_collection.find_one({"_id": ObjectId(current_user_id)})
+        # current_user_id = get_jwt_identity()
+        # users_collection = get_collection(os.getenv("COLLECTION_USERS"))
+        # current_user = users_collection.find_one({"_id": ObjectId(current_user_id)})
 
         # Salva o produto no banco
         items_collection = get_collection(os.getenv("COLLECTION_ITEMS"))
@@ -167,11 +170,13 @@ def create_item():
             "price": price,
             "category": category,
             "condition": condition,
-            "images": [image_url],  # 👈 importante: campo que o front vai usar
-            "seller_id": current_user["_id"],
+            "images": [image_url],
+            "seller_id": str(current_user["_id"]),  
             "created_at": datetime.now(),
-            "status": "Ativo",
+            "status": "avenda",                    
+            "boosted": False,                      
         }
+
 
         result = items_collection.insert_one(new_item)
 
