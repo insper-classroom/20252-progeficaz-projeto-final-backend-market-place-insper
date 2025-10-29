@@ -14,6 +14,7 @@ class User(Document):
     name = StringField(required=True, max_length=120)
     password_hash = StringField(required=True)
     cellphone = StringField(required=True)
+    favorites = ListField(ReferenceField('Product'), default=list)
     created_at = DateTimeField(default=datetime.utcnow)
 
     def set_password(self, password: str):

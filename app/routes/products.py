@@ -274,3 +274,66 @@ def confirm_with_code():
         return jsonify({"error": "código inválido"}), 404
     except ValidationError as e:
         return jsonify({"error": str(e)}), 400
+
+
+@bp.route("/<product_id>/favorite", methods=["POST"])
+@jwt_required()
+def add_favorite(product_id):
+    """
+    Adiciona um produto aos favoritos do usuário.
+    Requer autenticação.
+    """
+    user_id = get_jwt_identity()
+
+    try:
+        product = Product.objects.get(id=product_id)
+        user = User.objects.get(id=user_id)
+
+        # Verifica se o produto já está nos favoritos
+        if product in user.favorites:
+            return jsonify({"message": "produto já está nos favoritos"}), 200
+
+        # Adiciona produto aos favoritos
+        user.favorites.append(product)
+        user.save()
+
+        return jsonify({
+            "message": "produto adicionado aos favoritos",
+            "product": product.to_dict()
+        }), 201
+
+    except DoesNotExist:
+        return jsonify({"error": "produto ou usuário não encontrado"}), 404
+    except ValidationError:
+        return jsonify({"error": "ID inválido"}), 400
+
+
+@bp.route("/<product_id>/favorite", methods=["DELETE"])
+@jwt_required()
+def remove_favorite(product_id):
+    """
+    Remove um produto dos favoritos do usuário.
+    Requer autenticação.
+    """
+    user_id = get_jwt_identity()
+
+    try:
+        product = Product.objects.get(id=product_id)
+        user = User.objects.get(id=user_id)
+
+        # Verifica se o produto está nos favoritos
+        if product not in user.favorites:
+            return jsonify({"error": "produto não está nos favoritos"}), 404
+
+        # Remove produto dos favoritos
+        user.favorites.remove(product)
+        user.save()
+
+        return jsonify({
+            "message": "produto removido dos favoritos"
+        }), 200
+
+    except DoesNotExist:
+        return jsonify({"error": "produto ou usuário não encontrado"}), 404
+    except ValidationError:
+        return jsonify({"error": "ID inválido"}), 400

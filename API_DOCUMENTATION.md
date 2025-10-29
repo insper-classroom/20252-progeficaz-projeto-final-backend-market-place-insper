@@ -42,10 +42,15 @@ Authorization: Bearer <seu_token_jwt>
 
 ### Rotas Protegidas (requerem autenticação)
 - `GET /auth/me`
+- `GET /auth/me/sales`
+- `GET /auth/me/purchases`
+- `GET /auth/me/favorites`
 - `POST /products`
 - `POST /products/<product_id>/images`
 - `POST /products/<product_id>/generate-code`
 - `POST /products/confirm-with-code`
+- `POST /products/<product_id>/favorite`
+- `DELETE /products/<product_id>/favorite`
 
 ---
 
@@ -160,6 +165,179 @@ Authorization: Bearer <access_token>
 **Possíveis Erros:**
 - `401 Unauthorized`: Token ausente ou inválido
 - `422 Unprocessable Entity`: Formato do token JWT inválido
+
+---
+
+#### 4. Minhas Vendas
+```http
+GET /auth/me/sales
+```
+
+**Descrição:** Retorna todos os produtos que o usuário vendeu (onde ele é owner e o produto já tem um buyer).
+
+**Headers:**
+```
+Authorization: Bearer <access_token>
+```
+
+**Response (200 OK):**
+```json
+{
+  "total": 2,
+  "sales": [
+    {
+      "id": "507f1f77bcf86cd799439011",
+      "title": "iPhone 13 Pro",
+      "description": "256GB, azul",
+      "price": 3500.00,
+      "category": "eletrônicos",
+      "estado_de_conservacao": "seminovo",
+      "em_destaque": false,
+      "owner": {
+        "id": "507f1f77bcf86cd799439012",
+        "email": "vendedor@exemplo.com",
+        "name": "João Silva",
+        "cellphone": "+5511999999999",
+        "created_at": "2025-01-15T10:30:00.000Z"
+      },
+      "buyer": {
+        "id": "507f1f77bcf86cd799439013",
+        "email": "comprador@exemplo.com",
+        "name": "Maria Santos",
+        "cellphone": "+5511888888888",
+        "created_at": "2025-01-16T11:00:00.000Z"
+      },
+      "images": ["https://cloudinary.com/image1.jpg"],
+      "thumbnail": "https://cloudinary.com/image1.jpg",
+      "created_at": "2025-01-20T14:30:00.000Z",
+      "sale_info": {
+        "buyer": {
+          "id": "507f1f77bcf86cd799439013",
+          "email": "comprador@exemplo.com",
+          "name": "Maria Santos",
+          "cellphone": "+5511888888888",
+          "created_at": "2025-01-16T11:00:00.000Z"
+        },
+        "sold_at": "2025-01-20T14:30:00.000Z"
+      }
+    }
+  ]
+}
+```
+
+**Possíveis Erros:**
+- `401 Unauthorized`: Token ausente ou inválido
+- `404 Not Found`: Usuário não encontrado
+
+---
+
+#### 5. Minhas Compras
+```http
+GET /auth/me/purchases
+```
+
+**Descrição:** Retorna todos os produtos que o usuário comprou (onde ele é o buyer).
+
+**Headers:**
+```
+Authorization: Bearer <access_token>
+```
+
+**Response (200 OK):**
+```json
+{
+  "total": 1,
+  "purchases": [
+    {
+      "id": "507f1f77bcf86cd799439011",
+      "title": "iPhone 13 Pro",
+      "description": "256GB, azul",
+      "price": 3500.00,
+      "category": "eletrônicos",
+      "estado_de_conservacao": "seminovo",
+      "em_destaque": false,
+      "owner": {
+        "id": "507f1f77bcf86cd799439012",
+        "email": "vendedor@exemplo.com",
+        "name": "João Silva",
+        "cellphone": "+5511999999999",
+        "created_at": "2025-01-15T10:30:00.000Z"
+      },
+      "buyer": {
+        "id": "507f1f77bcf86cd799439013",
+        "email": "comprador@exemplo.com",
+        "name": "Maria Santos",
+        "cellphone": "+5511888888888",
+        "created_at": "2025-01-16T11:00:00.000Z"
+      },
+      "images": ["https://cloudinary.com/image1.jpg"],
+      "thumbnail": "https://cloudinary.com/image1.jpg",
+      "created_at": "2025-01-20T14:30:00.000Z",
+      "purchase_info": {
+        "seller": {
+          "id": "507f1f77bcf86cd799439012",
+          "email": "vendedor@exemplo.com",
+          "name": "João Silva",
+          "cellphone": "+5511999999999",
+          "created_at": "2025-01-15T10:30:00.000Z"
+        },
+        "purchased_at": "2025-01-20T14:30:00.000Z"
+      }
+    }
+  ]
+}
+```
+
+**Possíveis Erros:**
+- `401 Unauthorized`: Token ausente ou inválido
+- `404 Not Found`: Usuário não encontrado
+
+---
+
+#### 6. Meus Favoritos
+```http
+GET /auth/me/favorites
+```
+
+**Descrição:** Retorna todos os produtos favoritos do usuário.
+
+**Headers:**
+```
+Authorization: Bearer <access_token>
+```
+
+**Response (200 OK):**
+```json
+{
+  "total": 3,
+  "favorites": [
+    {
+      "id": "507f1f77bcf86cd799439014",
+      "title": "MacBook Pro 16",
+      "description": "M1 Pro, 32GB RAM",
+      "price": 12000.00,
+      "category": "eletrônicos",
+      "estado_de_conservacao": "novo",
+      "em_destaque": true,
+      "owner": {
+        "id": "507f1f77bcf86cd799439015",
+        "email": "outro@exemplo.com",
+        "name": "Pedro Costa",
+        "cellphone": "+5511777777777",
+        "created_at": "2025-01-10T09:00:00.000Z"
+      },
+      "buyer": null,
+      "images": ["https://cloudinary.com/image2.jpg"],
+      "thumbnail": "https://cloudinary.com/image2.jpg",
+      "created_at": "2025-01-18T16:45:00.000Z"
+    }
+  ]
+}
+```
+
+**Possíveis Erros:**
+- `401 Unauthorized`: Token ausente ou inválido
+- `404 Not Found`: Usuário não encontrado
 
 ---
 
@@ -551,6 +729,95 @@ Content-Type: application/json
 
 ---
 
+#### 7. Adicionar Produto aos Favoritos
+```http
+POST /products/<product_id>/favorite
+```
+
+**Descrição:** Adiciona um produto à lista de favoritos do usuário autenticado.
+
+**Headers:**
+```
+Authorization: Bearer <access_token>
+```
+
+**Path Parameters:**
+- `product_id`: ID do produto a ser favoritado
+
+**Response (201 Created):**
+```json
+{
+  "message": "produto adicionado aos favoritos",
+  "product": {
+    "id": "507f1f77bcf86cd799439011",
+    "title": "iPhone 13 Pro",
+    "description": "256GB, azul",
+    "price": 3500.00,
+    "category": "eletrônicos",
+    "estado_de_conservacao": "seminovo",
+    "em_destaque": false,
+    "owner": {
+      "id": "507f1f77bcf86cd799439012",
+      "email": "vendedor@exemplo.com",
+      "name": "João Silva",
+      "cellphone": "+5511999999999",
+      "created_at": "2025-01-15T10:30:00.000Z"
+    },
+    "buyer": null,
+    "images": ["https://cloudinary.com/image1.jpg"],
+    "thumbnail": "https://cloudinary.com/image1.jpg",
+    "created_at": "2025-01-20T14:30:00.000Z"
+  }
+}
+```
+
+**Response - Produto Já Favoritado (200 OK):**
+```json
+{
+  "message": "produto já está nos favoritos"
+}
+```
+
+**Possíveis Erros:**
+- `400 Bad Request`: ID inválido
+- `401 Unauthorized`: Token ausente ou inválido
+- `404 Not Found`: Produto ou usuário não encontrado
+
+**Observações:**
+- Um usuário pode favoritar o mesmo produto apenas uma vez
+- Produtos favoritos podem ser visualizados em `GET /auth/me/favorites`
+
+---
+
+#### 8. Remover Produto dos Favoritos
+```http
+DELETE /products/<product_id>/favorite
+```
+
+**Descrição:** Remove um produto da lista de favoritos do usuário autenticado.
+
+**Headers:**
+```
+Authorization: Bearer <access_token>
+```
+
+**Path Parameters:**
+- `product_id`: ID do produto a ser removido dos favoritos
+
+**Response (200 OK):**
+```json
+{
+  "message": "produto removido dos favoritos"
+}
+```
+
+**Possíveis Erros:**
+- `400 Bad Request`: ID inválido
+- `401 Unauthorized`: Token ausente ou inválido
+- `404 Not Found`: Produto não encontrado ou não está nos favoritos
+
+---
+
 ## Modelos de Dados
 
 ### User Model
@@ -564,6 +831,7 @@ Content-Type: application/json
   name: string,              // Nome do usuário (max 120 chars)
   password_hash: string,     // Senha com hash
   cellphone: string,         // Telefone celular (obrigatório)
+  favorites: Product[],      // Lista de referências para produtos favoritos
   created_at: DateTime       // Data de criação da conta
 }
 ```
@@ -572,6 +840,11 @@ Content-Type: application/json
 - `set_password(password)`: Faz hash e armazena a senha
 - `check_password(password)`: Verifica a senha
 - `to_dict()`: Retorna dicionário JSON-serializável
+
+**Observações:**
+- O campo `favorites` armazena referências (ObjectId) para produtos
+- Produtos favoritos podem ser adicionados via `POST /products/<product_id>/favorite`
+- Produtos favoritos podem ser visualizados via `GET /auth/me/favorites`
 
 ---
 
