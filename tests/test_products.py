@@ -29,6 +29,11 @@ class TestListProducts:
         assert len(response.json) == 3
         assert all("id" in p for p in response.json)
         assert all("title" in p for p in response.json)
+        # Verifica que owner é objeto completo
+        assert all("owner" in p for p in response.json)
+        assert all(isinstance(p["owner"], dict) for p in response.json)
+        assert all("email" in p["owner"] for p in response.json)
+        assert all("cellphone" in p["owner"] for p in response.json)
 
     def test_list_products_excludes_sold(self, client, auth_headers, second_user_headers):
         """Deve excluir produtos já vendidos da listagem"""
@@ -114,8 +119,11 @@ class TestCreateProduct:
         assert response.json["product"]["title"] == "MacBook Pro"
         assert response.json["product"]["description"] == "Laptop Apple M3"
         assert response.json["product"]["price"] == 15000.0
-        assert "owner_id" in response.json["product"]
-        assert response.json["product"]["buyer_id"] is None
+        assert "owner" in response.json["product"]
+        assert isinstance(response.json["product"]["owner"], dict)
+        assert "email" in response.json["product"]["owner"]
+        assert "cellphone" in response.json["product"]["owner"]
+        assert response.json["product"]["buyer"] is None
 
     def test_create_product_without_auth(self, client):
         """Deve retornar erro 401 sem autenticação"""
@@ -210,6 +218,12 @@ class TestGetProduct:
         assert response.json["id"] == product_id
         assert response.json["title"] == sample_product["title"]
         assert response.json["price"] == sample_product["price"]
+        # Verifica que owner é objeto completo
+        assert "owner" in response.json
+        assert isinstance(response.json["owner"], dict)
+        assert "email" in response.json["owner"]
+        assert "cellphone" in response.json["owner"]
+        assert response.json["owner"]["email"] == "test@example.com"
 
     def test_get_product_not_found(self, client):
         """Deve retornar erro 404 para produto inexistente"""
@@ -301,7 +315,11 @@ class TestConfirmWithCode:
 
         assert response.status_code == 200
         assert "message" in response.json
-        assert response.json["product"]["buyer_id"] is not None
+        assert response.json["product"]["buyer"] is not None
+        assert isinstance(response.json["product"]["buyer"], dict)
+        assert "email" in response.json["product"]["buyer"]
+        assert "cellphone" in response.json["product"]["buyer"]
+        assert response.json["product"]["buyer"]["email"] == "buyer@example.com"
 
     def test_confirm_with_code_invalid_code(self, client, second_user_headers):
         """Deve retornar erro 404 com código inválido"""
@@ -346,7 +364,8 @@ class TestConfirmWithCode:
         third_user_data = {
             "email": "third@example.com",
             "name": "Third User",
-            "password": "thirdpass123"
+            "password": "thirdpass123",
+            "cellphone": "+5511977777777"
         }
         client.post("/auth/register", json=third_user_data)
         login_response = client.post("/auth/login", json={
@@ -401,3 +420,46 @@ class TestListProductsWithConfirmation:
         # Verifica que não aparece mais na listagem
         response = client.get("/products")
         assert len(response.json) == 0
+
+
+class TestUploadProductImages:
+    """Testes para a rota de upload de imagens (POST /products/<product_id>/images)"""
+
+    def test_upload_image_returns_images_and_thumbnail_fields(self, client, auth_headers, sample_product):
+        """Deve retornar campos images e thumbnail em todos os endpoints"""
+        product_id = sample_product["id"]
+
+        # Verifica que produto sem imagens tem campos vazios
+        response = client.get(f"/products/{product_id}")
+        assert response.status_code == 200
+        assert "images" in response.json
+        assert "thumbnail" in response.json
+        assert response.json["images"] == []
+        assert response.json["thumbnail"] is None
+
+    def test_product_creation_includes_empty_images(self, client, auth_headers):
+        """Produto recém-criado deve ter images=[] e thumbnail=null"""
+        product_data = {
+            "title": "Produto Teste",
+            "description": "Teste",
+            "price": 100.0
+        }
+        response = client.post("/products", json=product_data, headers=auth_headers)
+
+        assert response.status_code == 201
+        assert "images" in response.json["product"]
+        assert "thumbnail" in response.json["product"]
+        assert response.json["product"]["images"] == []
+        assert response.json["product"]["thumbnail"] is None
+
+    def test_list_products_includes_images_and_thumbnail(self, client, auth_headers):
+        """Listagem de produtos deve incluir campos images e thumbnail"""
+        product_data = {"title": "Produto", "description": "Desc", "price": 100.0}
+        client.post("/products", json=product_data, headers=auth_headers)
+
+        response = client.get("/products")
+        assert response.status_code == 200
+        assert len(response.json) > 0
+        for product in response.json:
+            assert "images" in product
+            assert "thumbnail" in product

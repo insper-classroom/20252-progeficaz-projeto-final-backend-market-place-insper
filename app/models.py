@@ -1,7 +1,7 @@
 from datetime import datetime
 from mongoengine import (
     Document, StringField, EmailField, DateTimeField,
-    ReferenceField, FloatField, BooleanField, NULLIFY, CASCADE
+    ReferenceField, FloatField, BooleanField, ListField, NULLIFY, CASCADE
 )
 from werkzeug.security import generate_password_hash, check_password_hash
 
@@ -13,6 +13,7 @@ class User(Document):
     email = EmailField(required=True, unique=True)
     name = StringField(required=True, max_length=120)
     password_hash = StringField(required=True)
+    cellphone = StringField(required=True)
     created_at = DateTimeField(default=datetime.utcnow)
 
     def set_password(self, password: str):
@@ -22,23 +23,7 @@ class User(Document):
         return check_password_hash(self.password_hash, password)
 
     def to_dict(self):
-        return {"id": str(self.id), "email": self.email, "name": self.name, "created_at": self.created_at.isoformat()}
-
-class Cellphone(Document):
-    meta = {"collection": "cellphones"}
-    number = StringField(required=True, unique=True)
-    model = StringField()
-    user = ReferenceField(User, reverse_delete_rule=NULLIFY)
-    created_at = DateTimeField(default=datetime.utcnow)
-
-    def to_dict(self):
-        return {
-            "id": str(self.id),
-            "number": self.number,
-            "model": self.model,
-            "user_id": str(self.user.id) if self.user else None,
-            "created_at": self.created_at.isoformat()
-        }
+        return {"id": str(self.id), "email": self.email, "name": self.name, "cellphone": self.cellphone, "created_at": self.created_at.isoformat()}
 
 class Product(Document):
     meta = {
@@ -51,6 +36,7 @@ class Product(Document):
     owner = ReferenceField(User, required=True, reverse_delete_rule=CASCADE)   # proprietário (obrigatório)
     buyer = ReferenceField(User, required=False, null=True, reverse_delete_rule=NULLIFY)  # comprador (null até confirmar com código)
     confirmation_code = StringField(unique=True, sparse=True)  # código gerado pelo owner (se existe, owner confirmou)
+    images = ListField(StringField(), default=list)  # lista de URLs das imagens no Cloudinary
     created_at = DateTimeField(default=datetime.utcnow)
 
     def to_dict(self):
@@ -59,7 +45,9 @@ class Product(Document):
             "title": self.title,
             "description": self.description,
             "price": self.price,
-            "owner_id": str(self.owner.id) if self.owner else None,
-            "buyer_id": str(self.buyer.id) if self.buyer else None,
+            "owner": self.owner.to_dict() if self.owner else None,
+            "buyer": self.buyer.to_dict() if self.buyer else None,
+            "images": self.images,
+            "thumbnail": self.images[0] if self.images else None,
             "created_at": self.created_at.isoformat()
         }

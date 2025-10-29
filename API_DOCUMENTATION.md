@@ -43,6 +43,7 @@ Authorization: Bearer <seu_token_jwt>
 ### Rotas Protegidas (requerem autenticação)
 - `GET /auth/me`
 - `POST /products`
+- `POST /products/<product_id>/images`
 - `POST /products/<product_id>/generate-code`
 - `POST /products/confirm-with-code`
 
@@ -69,7 +70,8 @@ Content-Type: application/json
 {
   "email": "usuario@exemplo.com",
   "name": "Nome do Usuário",
-  "password": "senhaSegura123"
+  "password": "senhaSegura123",
+  "cellphone": "+5511999999999"
 }
 ```
 
@@ -77,6 +79,7 @@ Content-Type: application/json
 - `email`: Obrigatório, deve ser um email válido e único
 - `name`: Obrigatório
 - `password`: Obrigatório
+- `cellphone`: Obrigatório
 
 **Response (201 Created):**
 ```json
@@ -86,13 +89,14 @@ Content-Type: application/json
     "id": "507f1f77bcf86cd799439011",
     "email": "usuario@exemplo.com",
     "name": "Nome do Usuário",
+    "cellphone": "+5511999999999",
     "created_at": "2025-01-15T10:30:00.000Z"
   }
 }
 ```
 
 **Possíveis Erros:**
-- `400 Bad Request`: Email ou password faltando, ou email inválido
+- `400 Bad Request`: Email, password ou cellphone faltando, ou email inválido
 - `409 Conflict`: Email já cadastrado
 
 ---
@@ -148,6 +152,7 @@ Authorization: Bearer <access_token>
   "id": "507f1f77bcf86cd799439011",
   "email": "usuario@exemplo.com",
   "name": "Nome do Usuário",
+  "cellphone": "+5511999999999",
   "created_at": "2025-01-15T10:30:00.000Z"
 }
 ```
@@ -185,8 +190,18 @@ GET /products?q=notebook
     "title": "iPhone 13 Pro",
     "description": "Seminovo, 256GB, azul",
     "price": 3500.00,
-    "owner_id": "507f1f77bcf86cd799439012",
-    "buyer_id": null,
+    "owner": {
+      "id": "507f1f77bcf86cd799439012",
+      "email": "vendedor@exemplo.com",
+      "name": "João Silva",
+      "cellphone": "+5511999999999",
+      "created_at": "2025-01-14T08:00:00.000Z"
+    },
+    "buyer": null,
+    "images": [
+      "https://res.cloudinary.com/dgxv5exvc/image/upload/v1234567890/marketplace/products/507f1f77bcf86cd799439011/photo1.jpg"
+    ],
+    "thumbnail": "https://res.cloudinary.com/dgxv5exvc/image/upload/v1234567890/marketplace/products/507f1f77bcf86cd799439011/photo1.jpg",
     "created_at": "2025-01-15T10:30:00.000Z"
   },
   {
@@ -194,17 +209,26 @@ GET /products?q=notebook
     "title": "Notebook Dell",
     "description": "i7, 16GB RAM, SSD 512GB",
     "price": 2800.00,
-    "owner_id": "507f1f77bcf86cd799439014",
-    "buyer_id": null,
+    "owner": {
+      "id": "507f1f77bcf86cd799439014",
+      "email": "maria@exemplo.com",
+      "name": "Maria Santos",
+      "cellphone": "+5511988888888",
+      "created_at": "2025-01-13T15:30:00.000Z"
+    },
+    "buyer": null,
+    "images": [],
+    "thumbnail": null,
     "created_at": "2025-01-15T09:20:00.000Z"
   }
 ]
 ```
 
 **Observações:**
-- Retorna apenas produtos onde `buyer_id` é `null`
+- Retorna apenas produtos onde `buyer` é `null` (produtos ainda não vendidos)
 - Ordenados por data de criação (mais recentes primeiro)
 - Busca é case-insensitive e busca substring
+- Retorna informações completas do owner (incluindo email e cellphone)
 
 ---
 
@@ -244,8 +268,14 @@ Content-Type: application/json
     "title": "iPhone 13 Pro",
     "description": "Seminovo, 256GB, azul",
     "price": 3500.00,
-    "owner_id": "507f1f77bcf86cd799439012",
-    "buyer_id": null,
+    "owner": {
+      "id": "507f1f77bcf86cd799439012",
+      "email": "vendedor@exemplo.com",
+      "name": "João Silva",
+      "cellphone": "+5511999999999",
+      "created_at": "2025-01-14T08:00:00.000Z"
+    },
+    "buyer": null,
     "created_at": "2025-01-15T10:30:00.000Z"
   }
 }
@@ -258,7 +288,77 @@ Content-Type: application/json
 
 ---
 
-#### 3. Obter Detalhes de um Produto
+#### 3. Adicionar Imagem ao Produto
+```http
+POST /products/<product_id>/images
+```
+
+**Descrição:** Adiciona uma imagem ao produto via Cloudinary (requer autenticação).
+
+**Headers:**
+```
+Authorization: Bearer <access_token>
+Content-Type: application/json
+```
+
+**URL Parameters:**
+- `product_id`: ID do produto
+
+**Request Body:**
+```json
+{
+  "image": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEAYABgAAD..."
+}
+```
+
+**Validações:**
+- `image`: Obrigatório, string base64 da imagem ou URL da imagem
+- Apenas o owner pode adicionar imagens
+- Imagens são enviadas para o Cloudinary e otimizadas automaticamente
+
+**Response (201 Created):**
+```json
+{
+  "message": "imagem adicionada com sucesso",
+  "image_url": "https://res.cloudinary.com/dgxv5exvc/image/upload/v1234567890/marketplace/products/507f1f77bcf86cd799439011/abc123.jpg",
+  "product": {
+    "id": "507f1f77bcf86cd799439011",
+    "title": "iPhone 13 Pro",
+    "description": "Seminovo, 256GB, azul",
+    "price": 3500.00,
+    "owner": {
+      "id": "507f1f77bcf86cd799439012",
+      "email": "vendedor@exemplo.com",
+      "name": "João Silva",
+      "cellphone": "+5511999999999",
+      "created_at": "2025-01-14T08:00:00.000Z"
+    },
+    "buyer": null,
+    "images": [
+      "https://res.cloudinary.com/dgxv5exvc/image/upload/v1234567890/marketplace/products/507f1f77bcf86cd799439011/abc123.jpg"
+    ],
+    "thumbnail": "https://res.cloudinary.com/dgxv5exvc/image/upload/v1234567890/marketplace/products/507f1f77bcf86cd799439011/abc123.jpg",
+    "created_at": "2025-01-15T10:30:00.000Z"
+  }
+}
+```
+
+**Possíveis Erros:**
+- `400 Bad Request`: Imagem faltando ou formato inválido
+- `401 Unauthorized`: Token ausente ou inválido
+- `403 Forbidden`: Usuário não é o dono do produto
+- `404 Not Found`: Produto não encontrado
+- `500 Internal Server Error`: Erro ao fazer upload da imagem no Cloudinary
+
+**Observações:**
+- Imagens são armazenadas no Cloudinary e otimizadas automaticamente
+- O campo `thumbnail` sempre retorna a primeira imagem da lista
+- É possível adicionar múltiplas imagens fazendo múltiplas requisições
+- Imagens são organizadas em pastas por produto no Cloudinary
+
+---
+
+#### 4. Obter Detalhes de um Produto
 ```http
 GET /products/<product_id>
 ```
@@ -280,11 +380,28 @@ GET /products/507f1f77bcf86cd799439011
   "title": "iPhone 13 Pro",
   "description": "Seminovo, 256GB, azul",
   "price": 3500.00,
-  "owner_id": "507f1f77bcf86cd799439012",
-  "buyer_id": null,
+  "owner": {
+    "id": "507f1f77bcf86cd799439012",
+    "email": "vendedor@exemplo.com",
+    "name": "João Silva",
+    "cellphone": "+5511999999999",
+    "created_at": "2025-01-14T08:00:00.000Z"
+  },
+  "buyer": null,
+  "images": [
+    "https://res.cloudinary.com/dgxv5exvc/image/upload/v1234567890/marketplace/products/507f1f77bcf86cd799439011/photo1.jpg",
+    "https://res.cloudinary.com/dgxv5exvc/image/upload/v1234567890/marketplace/products/507f1f77bcf86cd799439011/photo2.jpg"
+  ],
+  "thumbnail": "https://res.cloudinary.com/dgxv5exvc/image/upload/v1234567890/marketplace/products/507f1f77bcf86cd799439011/photo1.jpg",
   "created_at": "2025-01-15T10:30:00.000Z"
 }
 ```
+
+**Observações:**
+- Retorna informações completas do owner e buyer (se houver)
+- Útil para obter o cellphone do vendedor para contato via WhatsApp
+- Campo `images` contém todas as URLs das imagens do produto
+- Campo `thumbnail` é a primeira imagem (usado para exibição em miniatura na listagem)
 
 **Possíveis Erros:**
 - `400 Bad Request`: Formato de ID inválido
@@ -292,7 +409,7 @@ GET /products/507f1f77bcf86cd799439011
 
 ---
 
-#### 4. Gerar Código de Confirmação
+#### 5. Gerar Código de Confirmação
 ```http
 POST /products/<product_id>/generate-code
 ```
@@ -317,8 +434,14 @@ Authorization: Bearer <access_token>
     "title": "iPhone 13 Pro",
     "description": "Seminovo, 256GB, azul",
     "price": 3500.00,
-    "owner_id": "507f1f77bcf86cd799439012",
-    "buyer_id": null,
+    "owner": {
+      "id": "507f1f77bcf86cd799439012",
+      "email": "vendedor@exemplo.com",
+      "name": "João Silva",
+      "cellphone": "+5511999999999",
+      "created_at": "2025-01-14T08:00:00.000Z"
+    },
+    "buyer": null,
     "created_at": "2025-01-15T10:30:00.000Z"
   }
 }
@@ -345,7 +468,7 @@ Authorization: Bearer <access_token>
 
 ---
 
-#### 5. Confirmar Compra com Código
+#### 6. Confirmar Compra com Código
 ```http
 POST /products/confirm-with-code
 ```
@@ -374,8 +497,20 @@ Content-Type: application/json
     "title": "iPhone 13 Pro",
     "description": "Seminovo, 256GB, azul",
     "price": 3500.00,
-    "owner_id": "507f1f77bcf86cd799439012",
-    "buyer_id": "507f1f77bcf86cd799439015",
+    "owner": {
+      "id": "507f1f77bcf86cd799439012",
+      "email": "vendedor@exemplo.com",
+      "name": "João Silva",
+      "cellphone": "+5511999999999",
+      "created_at": "2025-01-14T08:00:00.000Z"
+    },
+    "buyer": {
+      "id": "507f1f77bcf86cd799439015",
+      "email": "comprador@exemplo.com",
+      "name": "Ana Costa",
+      "cellphone": "+5511977777777",
+      "created_at": "2025-01-15T09:00:00.000Z"
+    },
     "created_at": "2025-01-15T10:30:00.000Z"
   }
 }
@@ -410,6 +545,7 @@ Content-Type: application/json
   email: string,             // Email único, indexado
   name: string,              // Nome do usuário (max 120 chars)
   password_hash: string,     // Senha com hash
+  cellphone: string,         // Telefone celular (obrigatório)
   created_at: DateTime       // Data de criação da conta
 }
 ```
@@ -431,15 +567,25 @@ Content-Type: application/json
   title: string,             // Nome do produto (max 200 chars)
   description: string,       // Descrição do produto
   price: float,              // Preço (>= 0)
-  owner: ObjectId,           // Referência ao User vendedor
-  buyer: ObjectId | null,    // Referência ao User comprador (nullable)
+  owner: User,               // Objeto User completo do vendedor
+  buyer: User | null,        // Objeto User completo do comprador (nullable)
   confirmation_code: string, // Código único de 8 caracteres (sparse/nullable)
+  images: string[],          // Lista de URLs das imagens no Cloudinary
+  thumbnail: string | null,  // URL da primeira imagem (para exibição na listagem)
   created_at: DateTime       // Data de criação
 }
 ```
 
+**Observações:**
+- No banco de dados, `owner` e `buyer` são referências (ObjectId)
+- Na serialização (`to_dict()`), são retornados como objetos User completos incluindo email, name, cellphone
+- Isso facilita o contato entre vendedor e comprador via WhatsApp
+- O campo `images` armazena URLs das imagens hospedadas no Cloudinary
+- O campo `thumbnail` é gerado automaticamente e sempre aponta para a primeira imagem da lista (ou null se não houver imagens)
+- Imagens são otimizadas automaticamente pelo Cloudinary
+
 **Métodos:**
-- `to_dict()`: Retorna dicionário JSON-serializável
+- `to_dict()`: Retorna dicionário JSON-serializável com owner e buyer expandidos, além de images e thumbnail
 
 **Índices:** `owner`, `buyer`, `confirmation_code`
 
@@ -506,10 +652,11 @@ COMPRADOR:
 
 RESULTADO:
 7. GET /products
-   → Produto não aparece mais na lista
+   → Produto não aparece mais na lista (pois tem buyer preenchido)
 
 8. GET /products/<product_id>
-   → Produto agora mostra buyer_id preenchido
+   → Produto agora mostra objeto buyer completo com informações do comprador
+   → Vendedor e comprador podem trocar contatos via cellphone para finalizar negociação
 ```
 
 ---
@@ -575,7 +722,7 @@ Você é o desenvolvedor frontend responsável por implementar a tela de "Meus P
 
 **2. Solução para filtrar "meus produtos":**
 ```javascript
-// Obter produtos e filtrar pelo owner_id do usuário atual
+// Obter produtos e filtrar pelo owner.id do usuário atual
 const currentUser = await fetch('/auth/me');
 const userData = await currentUser.json();
 
@@ -584,7 +731,7 @@ const productsData = await allProducts.json();
 
 // Limitação: isso só retorna produtos NÃO vendidos
 const myAvailableProducts = productsData.filter(
-  p => p.owner_id === userData.id
+  p => p.owner.id === userData.id
 );
 
 // Problema: não consigo ver produtos que já vendi!
@@ -675,7 +822,17 @@ MONGO_URI=mongodb://localhost:27017/marketplace
 JWT_SECRET_KEY=sua-chave-secreta-aqui
 FLASK_ENV=development
 JWT_ALGORITHM=HS256
+
+# Cloudinary (para upload de imagens)
+CLOUDINARY_CLOUD_NAME=seu-cloud-name
+CLOUDINARY_API_KEY=sua-api-key
+CLOUDINARY_API_SECRET=seu-api-secret
 ```
+
+**Como obter as credenciais do Cloudinary:**
+1. Crie uma conta gratuita em https://cloudinary.com
+2. No dashboard, copie o Cloud Name, API Key e API Secret
+3. Adicione as variáveis no arquivo `.env`
 
 ---
 
@@ -724,5 +881,20 @@ Para dúvidas sobre a API, consulte:
 
 ---
 
-**Versão:** 1.0
+**Versão:** 1.2
 **Última Atualização:** Janeiro 2025
+
+**Changelog:**
+- v1.2 (Janeiro 2025):
+  - Integração com Cloudinary para upload de imagens
+  - Novo endpoint `POST /products/<product_id>/images` para adicionar imagens
+  - Campos `images` e `thumbnail` adicionados ao modelo Product
+  - Imagens otimizadas automaticamente pelo Cloudinary
+  - Suporte para múltiplas imagens por produto
+- v1.1 (Janeiro 2025):
+  - Campo `cellphone` adicionado ao User (obrigatório)
+  - Campo `cellphone` obrigatório no registro
+  - Endpoints de produtos agora retornam objetos completos de owner e buyer (incluindo cellphone)
+  - Modelo Cellphone removido (simplificado como atributo do User)
+- v1.0 (Janeiro 2025):
+  - Versão inicial da API

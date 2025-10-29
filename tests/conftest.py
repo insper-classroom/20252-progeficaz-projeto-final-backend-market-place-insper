@@ -69,7 +69,8 @@ def auth_headers(client):
     user_data = {
         "email": "test@example.com",
         "name": "Test User",
-        "password": "testpassword123"
+        "password": "testpassword123",
+        "cellphone": "+5511999999999"
     }
     client.post("/auth/register", json=user_data)
 
@@ -93,7 +94,8 @@ def second_user_headers(client):
     user_data = {
         "email": "buyer@example.com",
         "name": "Buyer User",
-        "password": "buyerpass123"
+        "password": "buyerpass123",
+        "cellphone": "+5511988888888"
     }
     client.post("/auth/register", json=user_data)
 

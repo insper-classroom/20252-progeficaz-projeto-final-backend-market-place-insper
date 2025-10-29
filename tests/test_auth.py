@@ -9,7 +9,8 @@ class TestRegister:
         data = {
             "email": "newuser@example.com",
             "name": "New User",
-            "password": "securepass123"
+            "password": "securepass123",
+            "cellphone": "+5511999999999"
         }
         response = client.post("/auth/register", json=data)
 
@@ -17,6 +18,7 @@ class TestRegister:
         assert "user" in response.json
         assert response.json["user"]["email"] == "newuser@example.com"
         assert response.json["user"]["name"] == "New User"
+        assert response.json["user"]["cellphone"] == "+5511999999999"
         assert "id" in response.json["user"]
         assert "password" not in response.json["user"]
 
@@ -24,7 +26,8 @@ class TestRegister:
         """Deve retornar erro 400 se email não for fornecido"""
         data = {
             "name": "User Without Email",
-            "password": "password123"
+            "password": "password123",
+            "cellphone": "+5511999999999"
         }
         response = client.post("/auth/register", json=data)
 
@@ -35,7 +38,20 @@ class TestRegister:
         """Deve retornar erro 400 se password não for fornecido"""
         data = {
             "email": "nopassword@example.com",
-            "name": "No Password User"
+            "name": "No Password User",
+            "cellphone": "+5511999999999"
+        }
+        response = client.post("/auth/register", json=data)
+
+        assert response.status_code == 400
+        assert "error" in response.json
+
+    def test_register_without_cellphone(self, client):
+        """Deve retornar erro 400 se cellphone não for fornecido"""
+        data = {
+            "email": "nocellphone@example.com",
+            "name": "No Cellphone User",
+            "password": "password123"
         }
         response = client.post("/auth/register", json=data)
 
@@ -47,7 +63,8 @@ class TestRegister:
         data = {
             "email": "duplicate@example.com",
             "name": "First User",
-            "password": "password123"
+            "password": "password123",
+            "cellphone": "+5511999999999"
         }
         # Primeiro registro
         response1 = client.post("/auth/register", json=data)
@@ -55,6 +72,7 @@ class TestRegister:
 
         # Segundo registro com mesmo email
         data["name"] = "Second User"
+        data["cellphone"] = "+5511988888888"
         response2 = client.post("/auth/register", json=data)
         assert response2.status_code == 409
         assert "error" in response2.json
@@ -64,7 +82,8 @@ class TestRegister:
         data = {
             "email": "not-an-email",
             "name": "Invalid Email User",
-            "password": "password123"
+            "password": "password123",
+            "cellphone": "+5511999999999"
         }
         response = client.post("/auth/register", json=data)
 
@@ -80,7 +99,8 @@ class TestLogin:
         register_data = {
             "email": "logintest@example.com",
             "name": "Login Test",
-            "password": "mypassword"
+            "password": "mypassword",
+            "cellphone": "+5511999999999"
         }
         client.post("/auth/register", json=register_data)
 
@@ -102,7 +122,8 @@ class TestLogin:
         register_data = {
             "email": "wrongpass@example.com",
             "name": "Wrong Pass User",
-            "password": "correctpassword"
+            "password": "correctpassword",
+            "cellphone": "+5511999999999"
         }
         client.post("/auth/register", json=register_data)
 
@@ -158,8 +179,10 @@ class TestMe:
         assert response.status_code == 200
         assert "email" in response.json
         assert "name" in response.json
+        assert "cellphone" in response.json
         assert "id" in response.json
         assert response.json["email"] == "test@example.com"
+        assert response.json["cellphone"] == "+5511999999999"
         assert "password" not in response.json
 
     def test_me_without_token(self, client):

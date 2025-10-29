@@ -1,5 +1,6 @@
 from mongoengine import connect, get_db
 from flask_jwt_extended import JWTManager
+import cloudinary
 
 _db = None
 _jwt = None
@@ -20,3 +21,14 @@ def get_pymongo_db():
 def init_jwt(app):
     global _jwt
     _jwt = JWTManager(app)
+
+def init_cloudinary(app):
+    """
+    Inicializa configuração do Cloudinary.
+    """
+    cloudinary.config(
+        cloud_name=app.config.get("CLOUDINARY_CLOUD_NAME"),
+        api_key=app.config.get("CLOUDINARY_API_KEY"),
+        api_secret=app.config.get("CLOUDINARY_API_SECRET"),
+        secure=True
+    )

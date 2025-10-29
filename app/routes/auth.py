@@ -12,11 +12,16 @@ def register():
     email = data.get("email")
     name = data.get("name", "")
     password = data.get("password")
+    cellphone = data.get("cellphone")
+
     if not email or not password:
         return jsonify({"error": "email e password são obrigatórios"}), 400
 
+    if not cellphone:
+        return jsonify({"error": "cellphone é obrigatório"}), 400
+
     try:
-        u = User(email=email, name=name)
+        u = User(email=email, name=name, cellphone=cellphone)
         u.set_password(password)
         u.save()
         return jsonify({"message": "usuário criado", "user": u.to_dict()}), 201

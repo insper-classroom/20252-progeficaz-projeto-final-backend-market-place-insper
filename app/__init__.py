@@ -1,6 +1,6 @@
 from flask import Flask
 from flask_cors import CORS
-from .extensions import init_db, init_jwt
+from .extensions import init_db, init_jwt, init_cloudinary
 from .routes.auth import bp as auth_bp
 from .routes.products import bp as products_bp
 import os
@@ -19,9 +19,10 @@ def create_app(config_object=None):
     for k, v in os.environ.items():
         if k.isupper():
             app.config[k] = v
-    
+
     init_db(app)
     init_jwt(app)
+    init_cloudinary(app)
 
     # register blueprints
     app.register_blueprint(auth_bp)

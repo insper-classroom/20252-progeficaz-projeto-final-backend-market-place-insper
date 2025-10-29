@@ -4,6 +4,8 @@ from mongoengine.errors import ValidationError, DoesNotExist, NotUniqueError
 from mongoengine.queryset.visitor import Q
 from ..models import Product, User
 import secrets
+import cloudinary.uploader
+import base64
 
 
 bp = Blueprint("products", __name__, url_prefix="/products")
@@ -92,6 +94,59 @@ def get_product(product_id):
         return jsonify({"error": "produto não encontrado"}), 404
     except ValidationError:
         return jsonify({"error": "ID inválido"}), 400
+
+
+@bp.route("/<product_id>/images", methods=["POST"])
+@jwt_required()
+def upload_product_image(product_id):
+    """
+    Adiciona uma imagem ao produto via Cloudinary.
+    Requer autenticação.
+    Apenas o owner pode adicionar imagens.
+    Body (JSON):
+        - image: string base64 da imagem (obrigatório)
+    """
+    user_id = get_jwt_identity()
+    data = request.json or {}
+
+    image_data = data.get("image", "").strip()
+
+    if not image_data:
+        return jsonify({"error": "image é obrigatório"}), 400
+
+    try:
+        product = Product.objects.get(id=product_id)
+
+        # Verifica se usuário é o owner
+        if str(product.owner.id) != user_id:
+            return jsonify({"error": "apenas o proprietário pode adicionar imagens"}), 403
+
+        # Upload da imagem para o Cloudinary
+        upload_result = cloudinary.uploader.upload(
+            image_data,
+            folder=f"marketplace/products/{product_id}",
+            transformation=[
+                {"quality": "auto", "fetch_format": "auto"}
+            ]
+        )
+
+        # Adiciona URL da imagem ao produto
+        image_url = upload_result.get("secure_url")
+        product.images.append(image_url)
+        product.save()
+
+        return jsonify({
+            "message": "imagem adicionada com sucesso",
+            "image_url": image_url,
+            "product": product.to_dict()
+        }), 201
+
+    except DoesNotExist:
+        return jsonify({"error": "produto não encontrado"}), 404
+    except ValidationError:
+        return jsonify({"error": "ID inválido"}), 400
+    except Exception as e:
+        return jsonify({"error": f"erro ao fazer upload da imagem: {str(e)}"}), 500
 
 
 @bp.route("/<product_id>/generate-code", methods=["POST"])
