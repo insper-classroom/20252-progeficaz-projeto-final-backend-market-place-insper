@@ -130,6 +130,122 @@ def get_product(product_id):
         return jsonify({"error": "ID inválido"}), 400
 
 
+@bp.route("/<product_id>", methods=["PUT", "PATCH"])
+@jwt_required()
+def update_product(product_id):
+    """
+    Atualiza dados de um produto.
+    Requer autenticação.
+    Apenas o owner pode editar o produto.
+    Produtos já vendidos (com buyer) não podem ser editados.
+    Body (JSON) - todos os campos são opcionais:
+        - title: string
+        - description: string
+        - price: float (>= 0)
+        - category: string ("eletrodomésticos", "eletrônicos", "móveis", "outros")
+        - estado_de_conservacao: string ("novo", "seminovo", "usado")
+    """
+    user_id = get_jwt_identity()
+    data = request.json or {}
+
+    try:
+        product = Product.objects.get(id=product_id)
+
+        # Verifica se usuário é o owner
+        if str(product.owner.id) != user_id:
+            return jsonify({"error": "apenas o proprietário pode editar o produto"}), 403
+
+        # Verifica se produto já foi vendido
+        if product.buyer:
+            return jsonify({"error": "produtos já vendidos não podem ser editados"}), 400
+
+        # Campos que podem ser atualizados
+        title = data.get("title", "").strip()
+        description = data.get("description", "").strip()
+        price = data.get("price")
+        category = data.get("category", "").strip()
+        estado_de_conservacao = data.get("estado_de_conservacao", "").strip()
+
+        # Atualiza título se fornecido
+        if title:
+            product.title = title
+
+        # Atualiza descrição se fornecida (permite string vazia)
+        if "description" in data:
+            product.description = description
+
+        # Atualiza preço se fornecido
+        if price is not None:
+            try:
+                price = float(price)
+                if price < 0:
+                    return jsonify({"error": "price deve ser maior ou igual a 0"}), 400
+                product.price = price
+            except (ValueError, TypeError):
+                return jsonify({"error": "price deve ser um número"}), 400
+
+        # Atualiza categoria se fornecida
+        if category:
+            categorias_validas = ["eletrodomésticos", "eletrônicos", "móveis", "outros"]
+            if category not in categorias_validas:
+                return jsonify({"error": f"category deve ser um dos seguintes: {', '.join(categorias_validas)}"}), 400
+            product.category = category
+
+        # Atualiza estado de conservação se fornecido
+        if estado_de_conservacao:
+            estados_validos = ["novo", "seminovo", "usado"]
+            if estado_de_conservacao not in estados_validos:
+                return jsonify({"error": f"estado_de_conservacao deve ser um dos seguintes: {', '.join(estados_validos)}"}), 400
+            product.estado_de_conservacao = estado_de_conservacao
+
+        product.save()
+
+        return jsonify({
+            "message": "produto atualizado com sucesso",
+            "product": product.to_dict()
+        }), 200
+
+    except DoesNotExist:
+        return jsonify({"error": "produto não encontrado"}), 404
+    except ValidationError as e:
+        return jsonify({"error": str(e)}), 400
+
+
+@bp.route("/<product_id>", methods=["DELETE"])
+@jwt_required()
+def delete_product(product_id):
+    """
+    Deleta um produto.
+    Requer autenticação.
+    Apenas o owner pode deletar o produto.
+    Produtos já vendidos (com buyer) não podem ser deletados.
+    """
+    user_id = get_jwt_identity()
+
+    try:
+        product = Product.objects.get(id=product_id)
+
+        # Verifica se usuário é o owner
+        if str(product.owner.id) != user_id:
+            return jsonify({"error": "apenas o proprietário pode deletar o produto"}), 403
+
+        # Verifica se produto já foi vendido
+        if product.buyer:
+            return jsonify({"error": "produtos já vendidos não podem ser deletados"}), 400
+
+        # Deleta o produto
+        product.delete()
+
+        return jsonify({
+            "message": "produto deletado com sucesso"
+        }), 200
+
+    except DoesNotExist:
+        return jsonify({"error": "produto não encontrado"}), 404
+    except ValidationError:
+        return jsonify({"error": "ID inválido"}), 400
+
+
 @bp.route("/<product_id>/images", methods=["POST"])
 @jwt_required()
 def upload_product_image(product_id):

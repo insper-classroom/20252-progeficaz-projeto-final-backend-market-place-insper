@@ -42,10 +42,14 @@ Authorization: Bearer <seu_token_jwt>
 
 ### Rotas Protegidas (requerem autenticação)
 - `GET /auth/me`
+- `PUT/PATCH /auth/me`
+- `DELETE /auth/me`
 - `GET /auth/me/sales`
 - `GET /auth/me/purchases`
 - `GET /auth/me/favorites`
 - `POST /products`
+- `PUT/PATCH /products/<product_id>`
+- `DELETE /products/<product_id>`
 - `POST /products/<product_id>/images`
 - `POST /products/<product_id>/generate-code`
 - `POST /products/confirm-with-code`
@@ -236,7 +240,7 @@ Authorization: Bearer <access_token>
 GET /auth/me/purchases
 ```
 
-**Descrição:** Retorna todos os produtos que o usuário comprou (onde ele é o buyer).
+**Descrição:** Retorna todos os produtos que o usuario comprou (onde ele é o buyer).
 
 **Headers:**
 ```

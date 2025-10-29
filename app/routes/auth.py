@@ -57,6 +57,113 @@ def me():
     except DoesNotExist:
         return jsonify({"error": "usuário não encontrado"}), 404
 
+@bp.route("/me", methods=["PUT", "PATCH"])
+@jwt_required()
+def update_me():
+    """Atualiza dados do usuário autenticado"""
+    user_id = get_jwt_identity()
+    data = request.json or {}
+
+    try:
+        user = User.objects.get(id=user_id)
+
+        # Campos que podem ser atualizados
+        name = data.get("name", "").strip()
+        cellphone = data.get("cellphone", "").strip()
+        email = data.get("email", "").strip()
+        password = data.get("password", "").strip()
+        current_password = data.get("current_password", "").strip()
+
+        # Atualiza nome se fornecido
+        if name:
+            user.name = name
+
+        # Atualiza celular se fornecido
+        if cellphone:
+            user.cellphone = cellphone
+
+        # Atualiza email se fornecido
+        if email and email != user.email:
+            # Verifica se o novo email já está em uso
+            existing_user = User.objects(email=email).first()
+            if existing_user and str(existing_user.id) != user_id:
+                return jsonify({"error": "email já está em uso"}), 409
+            user.email = email
+
+        # Atualiza senha se fornecida (requer senha atual)
+        if password:
+            if not current_password:
+                return jsonify({"error": "current_password é obrigatório para alterar a senha"}), 400
+
+            # Verifica senha atual
+            if not user.check_password(current_password):
+                return jsonify({"error": "senha atual incorreta"}), 401
+
+            user.set_password(password)
+
+        user.save()
+
+        return jsonify({
+            "message": "dados atualizados com sucesso",
+            "user": user.to_dict()
+        }), 200
+
+    except DoesNotExist:
+        return jsonify({"error": "usuário não encontrado"}), 404
+    except NotUniqueError:
+        return jsonify({"error": "email já está em uso"}), 409
+    except ValidationError as e:
+        return jsonify({"error": str(e)}), 400
+
+@bp.route("/me", methods=["DELETE"])
+@jwt_required()
+def delete_me():
+    """Deleta a conta do usuário autenticado"""
+    user_id = get_jwt_identity()
+    data = request.json or {}
+
+    # Requer confirmação via senha
+    password = data.get("password", "").strip()
+
+    if not password:
+        return jsonify({"error": "password é obrigatório para deletar a conta"}), 400
+
+    try:
+        user = User.objects.get(id=user_id)
+
+        # Verifica senha
+        if not user.check_password(password):
+            return jsonify({"error": "senha incorreta"}), 401
+
+        # Verifica se usuário tem produtos vendidos (com buyer)
+        sold_products = Product.objects(owner=user, buyer__ne=None).count()
+        if sold_products > 0:
+            return jsonify({
+                "error": "não é possível deletar conta com produtos já vendidos. Entre em contato com o suporte."
+            }), 400
+
+        # Deleta produtos não vendidos do usuário
+        Product.objects(owner=user, buyer=None).delete()
+
+        # Remove usuário dos favoritos de outros usuários
+        users_with_favorite = User.objects(favorites=user)
+        for u in users_with_favorite:
+            if user in u.favorites:
+                u.favorites.remove(user)
+                u.save()
+
+        # Deleta usuário
+        user.delete()
+
+        return jsonify({
+            "message": "conta deletada com sucesso"
+        }), 200
+
+    except DoesNotExist:
+        return jsonify({"error": "usuário não encontrado"}), 404
+    except ValidationError as e:
+        return jsonify({"error": str(e)}), 400
+
 @bp.route("/me/sales", methods=["GET"])
 @jwt_required()
 def my_sales():
