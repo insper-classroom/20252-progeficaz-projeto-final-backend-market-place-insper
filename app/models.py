@@ -28,11 +28,14 @@ class User(Document):
 class Product(Document):
     meta = {
         "collection": "products",
-        "indexes": ["owner", "buyer", "confirmation_code"]
+        "indexes": ["owner", "buyer", "confirmation_code", "category", "em_destaque"]
     }
     title = StringField(required=True, max_length=200)
     description = StringField()
     price = FloatField(required=True, min_value=0.0)
+    category = StringField(required=True, choices=["eletrodomésticos", "eletrônicos", "móveis", "outros"])
+    estado_de_conservacao = StringField(required=True, choices=["novo", "seminovo", "usado"])
+    em_destaque = BooleanField(default=False)  # campo para anúncios pagos em destaque
     owner = ReferenceField(User, required=True, reverse_delete_rule=CASCADE)   # proprietário (obrigatório)
     buyer = ReferenceField(User, required=False, null=True, reverse_delete_rule=NULLIFY)  # comprador (null até confirmar com código)
     confirmation_code = StringField(unique=True, sparse=True)  # código gerado pelo owner (se existe, owner confirmou)
@@ -45,6 +48,9 @@ class Product(Document):
             "title": self.title,
             "description": self.description,
             "price": self.price,
+            "category": self.category,
+            "estado_de_conservacao": self.estado_de_conservacao,
+            "em_destaque": self.em_destaque,
             "owner": self.owner.to_dict() if self.owner else None,
             "buyer": self.buyer.to_dict() if self.buyer else None,
             "images": self.images,

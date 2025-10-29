@@ -15,9 +15,9 @@ class TestListProducts:
         """Deve listar produtos disponíveis"""
         # Cria alguns produtos
         products = [
-            {"title": "Produto 1", "description": "Desc 1", "price": 100.0},
-            {"title": "Produto 2", "description": "Desc 2", "price": 200.0},
-            {"title": "Produto 3", "description": "Desc 3", "price": 300.0}
+            {"title": "Produto 1", "description": "Desc 1", "price": 100.0, "category": "eletrônicos", "estado_de_conservacao": "novo"},
+            {"title": "Produto 2", "description": "Desc 2", "price": 200.0, "category": "móveis", "estado_de_conservacao": "usado"},
+            {"title": "Produto 3", "description": "Desc 3", "price": 300.0, "category": "outros", "estado_de_conservacao": "seminovo"}
         ]
         for p in products:
             client.post("/products", json=p, headers=auth_headers)
@@ -38,7 +38,7 @@ class TestListProducts:
     def test_list_products_excludes_sold(self, client, auth_headers, second_user_headers):
         """Deve excluir produtos já vendidos da listagem"""
         # Cria produto
-        product_data = {"title": "iPhone", "description": "Novo", "price": 5000.0}
+        product_data = {"title": "iPhone", "description": "Novo", "price": 5000.0, "category": "eletrônicos", "estado_de_conservacao": "novo"}
         response = client.post("/products", json=product_data, headers=auth_headers)
         product_id = response.json["product"]["id"]
 
@@ -61,9 +61,9 @@ class TestListProducts:
         """Deve buscar produtos por título"""
         # Cria produtos
         products = [
-            {"title": "iPhone 15", "description": "Smartphone Apple", "price": 5000.0},
-            {"title": "Samsung Galaxy", "description": "Smartphone Samsung", "price": 3000.0},
-            {"title": "iPad Pro", "description": "Tablet Apple", "price": 7000.0}
+            {"title": "iPhone 15", "description": "Smartphone Apple", "price": 5000.0, "category": "eletrônicos", "estado_de_conservacao": "novo"},
+            {"title": "Samsung Galaxy", "description": "Smartphone Samsung", "price": 3000.0, "category": "eletrônicos", "estado_de_conservacao": "usado"},
+            {"title": "iPad Pro", "description": "Tablet Apple", "price": 7000.0, "category": "eletrônicos", "estado_de_conservacao": "seminovo"}
         ]
         for p in products:
             client.post("/products", json=p, headers=auth_headers)
@@ -78,9 +78,9 @@ class TestListProducts:
         """Deve buscar produtos por descrição"""
         # Cria produtos
         products = [
-            {"title": "iPhone 15", "description": "Smartphone Apple", "price": 5000.0},
-            {"title": "Samsung Galaxy", "description": "Smartphone Samsung", "price": 3000.0},
-            {"title": "iPad Pro", "description": "Tablet Apple", "price": 7000.0}
+            {"title": "iPhone 15", "description": "Smartphone Apple", "price": 5000.0, "category": "eletrônicos", "estado_de_conservacao": "novo"},
+            {"title": "Samsung Galaxy", "description": "Smartphone Samsung", "price": 3000.0, "category": "eletrônicos", "estado_de_conservacao": "usado"},
+            {"title": "iPad Pro", "description": "Tablet Apple", "price": 7000.0, "category": "eletrônicos", "estado_de_conservacao": "seminovo"}
         ]
         for p in products:
             client.post("/products", json=p, headers=auth_headers)
@@ -93,7 +93,7 @@ class TestListProducts:
 
     def test_search_products_case_insensitive(self, client, auth_headers):
         """Busca deve ser case insensitive"""
-        product_data = {"title": "iPhone 15", "description": "Novo", "price": 5000.0}
+        product_data = {"title": "iPhone 15", "description": "Novo", "price": 5000.0, "category": "eletrônicos", "estado_de_conservacao": "novo"}
         client.post("/products", json=product_data, headers=auth_headers)
 
         # Busca com minúsculas
@@ -110,7 +110,9 @@ class TestCreateProduct:
         product_data = {
             "title": "MacBook Pro",
             "description": "Laptop Apple M3",
-            "price": 15000.0
+            "price": 15000.0,
+            "category": "eletrônicos",
+            "estado_de_conservacao": "novo"
         }
         response = client.post("/products", json=product_data, headers=auth_headers)
 
@@ -130,7 +132,9 @@ class TestCreateProduct:
         product_data = {
             "title": "Produto Teste",
             "description": "Descrição",
-            "price": 100.0
+            "price": 100.0,
+            "category": "outros",
+            "estado_de_conservacao": "usado"
         }
         response = client.post("/products", json=product_data)
 
@@ -140,7 +144,9 @@ class TestCreateProduct:
         """Deve retornar erro 400 sem título"""
         product_data = {
             "description": "Sem título",
-            "price": 100.0
+            "price": 100.0,
+            "category": "outros",
+            "estado_de_conservacao": "usado"
         }
         response = client.post("/products", json=product_data, headers=auth_headers)
 
@@ -151,7 +157,9 @@ class TestCreateProduct:
         """Deve retornar erro 400 sem preço"""
         product_data = {
             "title": "Produto Sem Preço",
-            "description": "Teste"
+            "description": "Teste",
+            "category": "outros",
+            "estado_de_conservacao": "usado"
         }
         response = client.post("/products", json=product_data, headers=auth_headers)
 
@@ -163,7 +171,9 @@ class TestCreateProduct:
         product_data = {
             "title": "Produto Preço Negativo",
             "description": "Teste",
-            "price": -100.0
+            "price": -100.0,
+            "category": "outros",
+            "estado_de_conservacao": "usado"
         }
         response = client.post("/products", json=product_data, headers=auth_headers)
 
@@ -175,7 +185,9 @@ class TestCreateProduct:
         product_data = {
             "title": "Produto Grátis",
             "description": "De graça",
-            "price": 0.0
+            "price": 0.0,
+            "category": "outros",
+            "estado_de_conservacao": "usado"
         }
         response = client.post("/products", json=product_data, headers=auth_headers)
 
@@ -187,7 +199,9 @@ class TestCreateProduct:
         product_data = {
             "title": "Produto Preço Inválido",
             "description": "Teste",
-            "price": "não é número"
+            "price": "não é número",
+            "category": "outros",
+            "estado_de_conservacao": "usado"
         }
         response = client.post("/products", json=product_data, headers=auth_headers)
 
@@ -198,12 +212,68 @@ class TestCreateProduct:
         """Deve permitir criar produto sem descrição"""
         product_data = {
             "title": "Produto Sem Descrição",
-            "price": 250.0
+            "price": 250.0,
+            "category": "outros",
+            "estado_de_conservacao": "usado"
         }
         response = client.post("/products", json=product_data, headers=auth_headers)
 
         assert response.status_code == 201
         assert response.json["product"]["description"] == ""
+
+    def test_create_product_without_category(self, client, auth_headers):
+        """Deve retornar erro 400 sem category"""
+        product_data = {
+            "title": "Produto Sem Categoria",
+            "description": "Teste",
+            "price": 100.0,
+            "estado_de_conservacao": "usado"
+        }
+        response = client.post("/products", json=product_data, headers=auth_headers)
+
+        assert response.status_code == 400
+        assert "error" in response.json
+
+    def test_create_product_without_estado_de_conservacao(self, client, auth_headers):
+        """Deve retornar erro 400 sem estado_de_conservacao"""
+        product_data = {
+            "title": "Produto Sem Estado",
+            "description": "Teste",
+            "price": 100.0,
+            "category": "eletrônicos"
+        }
+        response = client.post("/products", json=product_data, headers=auth_headers)
+
+        assert response.status_code == 400
+        assert "error" in response.json
+
+    def test_create_product_with_invalid_category(self, client, auth_headers):
+        """Deve retornar erro 400 com category inválida"""
+        product_data = {
+            "title": "Produto Categoria Inválida",
+            "description": "Teste",
+            "price": 100.0,
+            "category": "categoria_inexistente",
+            "estado_de_conservacao": "usado"
+        }
+        response = client.post("/products", json=product_data, headers=auth_headers)
+
+        assert response.status_code == 400
+        assert "error" in response.json
+
+    def test_create_product_with_invalid_estado(self, client, auth_headers):
+        """Deve retornar erro 400 com estado_de_conservacao inválido"""
+        product_data = {
+            "title": "Produto Estado Inválido",
+            "description": "Teste",
+            "price": 100.0,
+            "category": "eletrônicos",
+            "estado_de_conservacao": "estado_inexistente"
+        }
+        response = client.post("/products", json=product_data, headers=auth_headers)
+
+        assert response.status_code == 400
+        assert "error" in response.json
 
 
 class TestGetProduct:
@@ -442,7 +512,9 @@ class TestUploadProductImages:
         product_data = {
             "title": "Produto Teste",
             "description": "Teste",
-            "price": 100.0
+            "price": 100.0,
+            "category": "outros",
+            "estado_de_conservacao": "usado"
         }
         response = client.post("/products", json=product_data, headers=auth_headers)
 
@@ -454,7 +526,7 @@ class TestUploadProductImages:
 
     def test_list_products_includes_images_and_thumbnail(self, client, auth_headers):
         """Listagem de produtos deve incluir campos images e thumbnail"""
-        product_data = {"title": "Produto", "description": "Desc", "price": 100.0}
+        product_data = {"title": "Produto", "description": "Desc", "price": 100.0, "category": "outros", "estado_de_conservacao": "usado"}
         client.post("/products", json=product_data, headers=auth_headers)
 
         response = client.get("/products")

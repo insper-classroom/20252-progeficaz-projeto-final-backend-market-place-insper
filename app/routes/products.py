@@ -44,6 +44,8 @@ def create_product():
         - title: string (obrigatório)
         - description: string (opcional)
         - price: float (obrigatório, >= 0)
+        - category: string (obrigatório, valores: "eletrodomésticos", "eletrônicos", "móveis", "outros")
+        - estado_de_conservacao: string (obrigatório, valores: "novo", "seminovo", "usado")
     """
     user_id = get_jwt_identity()
     data = request.json or {}
@@ -51,12 +53,30 @@ def create_product():
     title = data.get("title", "").strip()
     description = data.get("description", "").strip()
     price = data.get("price")
+    category = data.get("category", "").strip()
+    estado_de_conservacao = data.get("estado_de_conservacao", "").strip()
 
+    # Validações básicas
     if not title:
         return jsonify({"error": "title é obrigatório"}), 400
 
     if price is None:
         return jsonify({"error": "price é obrigatório"}), 400
+
+    if not category:
+        return jsonify({"error": "category é obrigatório"}), 400
+
+    if not estado_de_conservacao:
+        return jsonify({"error": "estado_de_conservacao é obrigatório"}), 400
+
+    # Validação de valores permitidos
+    categorias_validas = ["eletrodomésticos", "eletrônicos", "móveis", "outros"]
+    if category not in categorias_validas:
+        return jsonify({"error": f"category deve ser um dos seguintes: {', '.join(categorias_validas)}"}), 400
+
+    estados_validos = ["novo", "seminovo", "usado"]
+    if estado_de_conservacao not in estados_validos:
+        return jsonify({"error": f"estado_de_conservacao deve ser um dos seguintes: {', '.join(estados_validos)}"}), 400
 
     try:
         price = float(price)
@@ -72,6 +92,8 @@ def create_product():
             title=title,
             description=description,
             price=price,
+            category=category,
+            estado_de_conservacao=estado_de_conservacao,
             owner=user
         )
         product.save()

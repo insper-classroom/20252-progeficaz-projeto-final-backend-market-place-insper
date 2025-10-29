@@ -118,7 +118,9 @@ def sample_product(client, auth_headers):
     product_data = {
         "title": "iPhone 15",
         "description": "Novo na caixa",
-        "price": 5000.00
+        "price": 5000.00,
+        "category": "eletrônicos",
+        "estado_de_conservacao": "novo"
     }
     response = client.post("/products", json=product_data, headers=auth_headers)
     return response.json["product"]

@@ -188,8 +188,11 @@ GET /products?q=notebook
   {
     "id": "507f1f77bcf86cd799439011",
     "title": "iPhone 13 Pro",
-    "description": "Seminovo, 256GB, azul",
+    "description": "256GB, azul",
     "price": 3500.00,
+    "category": "eletrônicos",
+    "estado_de_conservacao": "seminovo",
+    "em_destaque": false,
     "owner": {
       "id": "507f1f77bcf86cd799439012",
       "email": "vendedor@exemplo.com",
@@ -209,6 +212,9 @@ GET /products?q=notebook
     "title": "Notebook Dell",
     "description": "i7, 16GB RAM, SSD 512GB",
     "price": 2800.00,
+    "category": "eletrônicos",
+    "estado_de_conservacao": "usado",
+    "em_destaque": false,
     "owner": {
       "id": "507f1f77bcf86cd799439014",
       "email": "maria@exemplo.com",
@@ -249,8 +255,10 @@ Content-Type: application/json
 ```json
 {
   "title": "iPhone 13 Pro",
-  "description": "Seminovo, 256GB, azul",
-  "price": 3500.00
+  "description": "256GB, azul",
+  "price": 3500.00,
+  "category": "eletrônicos",
+  "estado_de_conservacao": "seminovo"
 }
 ```
 
@@ -258,6 +266,8 @@ Content-Type: application/json
 - `title`: Obrigatório, máximo 200 caracteres
 - `description`: Opcional (default: string vazia)
 - `price`: Obrigatório, deve ser >= 0
+- `category`: Obrigatório, valores permitidos: "eletrodomésticos", "eletrônicos", "móveis", "outros"
+- `estado_de_conservacao`: Obrigatório, valores permitidos: "novo", "seminovo", "usado"
 
 **Response (201 Created):**
 ```json
@@ -266,8 +276,11 @@ Content-Type: application/json
   "product": {
     "id": "507f1f77bcf86cd799439011",
     "title": "iPhone 13 Pro",
-    "description": "Seminovo, 256GB, azul",
+    "description": "256GB, azul",
     "price": 3500.00,
+    "category": "eletrônicos",
+    "estado_de_conservacao": "seminovo",
+    "em_destaque": false,
     "owner": {
       "id": "507f1f77bcf86cd799439012",
       "email": "vendedor@exemplo.com",
@@ -276,13 +289,15 @@ Content-Type: application/json
       "created_at": "2025-01-14T08:00:00.000Z"
     },
     "buyer": null,
+    "images": [],
+    "thumbnail": null,
     "created_at": "2025-01-15T10:30:00.000Z"
   }
 }
 ```
 
 **Possíveis Erros:**
-- `400 Bad Request`: Título ou preço faltando, preço negativo, ou dados inválidos
+- `400 Bad Request`: Campos obrigatórios faltando (title, price, category, estado_de_conservacao), preço negativo, valores inválidos de category ou estado_de_conservacao
 - `401 Unauthorized`: Token ausente ou inválido
 - `404 Not Found`: Usuário autenticado não existe no banco
 
@@ -378,8 +393,11 @@ GET /products/507f1f77bcf86cd799439011
 {
   "id": "507f1f77bcf86cd799439011",
   "title": "iPhone 13 Pro",
-  "description": "Seminovo, 256GB, azul",
+  "description": "256GB, azul",
   "price": 3500.00,
+  "category": "eletrônicos",
+  "estado_de_conservacao": "seminovo",
+  "em_destaque": false,
   "owner": {
     "id": "507f1f77bcf86cd799439012",
     "email": "vendedor@exemplo.com",
@@ -563,16 +581,19 @@ Content-Type: application/json
 
 ```typescript
 {
-  id: ObjectId,              // Identificador único
-  title: string,             // Nome do produto (max 200 chars)
-  description: string,       // Descrição do produto
-  price: float,              // Preço (>= 0)
-  owner: User,               // Objeto User completo do vendedor
-  buyer: User | null,        // Objeto User completo do comprador (nullable)
-  confirmation_code: string, // Código único de 8 caracteres (sparse/nullable)
-  images: string[],          // Lista de URLs das imagens no Cloudinary
-  thumbnail: string | null,  // URL da primeira imagem (para exibição na listagem)
-  created_at: DateTime       // Data de criação
+  id: ObjectId,                    // Identificador único
+  title: string,                   // Nome do produto (max 200 chars)
+  description: string,             // Descrição do produto
+  price: float,                    // Preço (>= 0)
+  category: string,                // Categoria: "eletrodomésticos", "eletrônicos", "móveis", "outros"
+  estado_de_conservacao: string,   // Estado: "novo", "seminovo", "usado"
+  em_destaque: boolean,            // Indica se é anúncio em destaque (padrão: false)
+  owner: User,                     // Objeto User completo do vendedor
+  buyer: User | null,              // Objeto User completo do comprador (nullable)
+  confirmation_code: string,       // Código único de 8 caracteres (sparse/nullable)
+  images: string[],                // Lista de URLs das imagens no Cloudinary
+  thumbnail: string | null,        // URL da primeira imagem (para exibição na listagem)
+  created_at: DateTime             // Data de criação
 }
 ```
 
@@ -583,11 +604,14 @@ Content-Type: application/json
 - O campo `images` armazena URLs das imagens hospedadas no Cloudinary
 - O campo `thumbnail` é gerado automaticamente e sempre aponta para a primeira imagem da lista (ou null se não houver imagens)
 - Imagens são otimizadas automaticamente pelo Cloudinary
+- O campo `category` é obrigatório e aceita apenas: "eletrodomésticos", "eletrônicos", "móveis", "outros"
+- O campo `estado_de_conservacao` é obrigatório e aceita apenas: "novo", "seminovo", "usado"
+- O campo `em_destaque` é um boolean (padrão false) preparado para futura funcionalidade de anúncios pagos
 
 **Métodos:**
-- `to_dict()`: Retorna dicionário JSON-serializável com owner e buyer expandidos, além de images e thumbnail
+- `to_dict()`: Retorna dicionário JSON-serializável com todos os campos incluindo owner e buyer expandidos
 
-**Índices:** `owner`, `buyer`, `confirmation_code`
+**Índices:** `owner`, `buyer`, `confirmation_code`, `category`, `em_destaque`
 
 ---
 
@@ -881,10 +905,16 @@ Para dúvidas sobre a API, consulte:
 
 ---
 
-**Versão:** 1.2
+**Versão:** 1.3
 **Última Atualização:** Janeiro 2025
 
 **Changelog:**
+- v1.3 (Janeiro 2025):
+  - Adicionado campo `category` obrigatório (valores: "eletrodomésticos", "eletrônicos", "móveis", "outros")
+  - Adicionado campo `estado_de_conservacao` obrigatório (valores: "novo", "seminovo", "usado")
+  - Adicionado campo `em_destaque` (boolean, padrão false) preparado para anúncios pagos
+  - Novos índices para `category` e `em_destaque` para melhor performance
+  - Validação automática de valores permitidos para category e estado_de_conservacao
 - v1.2 (Janeiro 2025):
   - Integração com Cloudinary para upload de imagens
   - Novo endpoint `POST /products/<product_id>/images` para adicionar imagens
