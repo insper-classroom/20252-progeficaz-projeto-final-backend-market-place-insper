@@ -101,6 +101,72 @@ class TestListProducts:
         assert response.status_code == 200
         assert len(response.json) == 1
 
+    def test_filter_products_by_category(self, client, auth_headers):
+        """Deve filtrar produtos por categoria"""
+        # Cria produtos de diferentes categorias
+        products = [
+            {"title": "Geladeira", "description": "Frost Free", "price": 2000.0, "category": "eletrodomésticos", "estado_de_conservacao": "novo"},
+            {"title": "iPhone", "description": "Smartphone", "price": 3000.0, "category": "eletrônicos", "estado_de_conservacao": "seminovo"},
+            {"title": "Sofá", "description": "3 lugares", "price": 1500.0, "category": "móveis", "estado_de_conservacao": "usado"},
+            {"title": "Notebook", "description": "Dell", "price": 2500.0, "category": "eletrônicos", "estado_de_conservacao": "novo"}
+        ]
+        for p in products:
+            client.post("/products", json=p, headers=auth_headers)
+
+        # Filtra por categoria "eletrônicos"
+        response = client.get("/products?category=eletrônicos")
+        assert response.status_code == 200
+        assert len(response.json) == 2
+        assert all(p["category"] == "eletrônicos" for p in response.json)
+
+        # Filtra por categoria "móveis"
+        response = client.get("/products?category=móveis")
+        assert response.status_code == 200
+        assert len(response.json) == 1
+        assert response.json[0]["category"] == "móveis"
+
+    def test_filter_products_by_estado_de_conservacao(self, client, auth_headers):
+        """Deve filtrar produtos por estado de conservação"""
+        # Cria produtos com diferentes estados
+        products = [
+            {"title": "Produto 1", "description": "Desc", "price": 100.0, "category": "eletrônicos", "estado_de_conservacao": "novo"},
+            {"title": "Produto 2", "description": "Desc", "price": 200.0, "category": "eletrônicos", "estado_de_conservacao": "seminovo"},
+            {"title": "Produto 3", "description": "Desc", "price": 300.0, "category": "eletrônicos", "estado_de_conservacao": "usado"},
+            {"title": "Produto 4", "description": "Desc", "price": 400.0, "category": "eletrônicos", "estado_de_conservacao": "novo"}
+        ]
+        for p in products:
+            client.post("/products", json=p, headers=auth_headers)
+
+        # Filtra por estado "novo"
+        response = client.get("/products?estado_de_conservacao=novo")
+        assert response.status_code == 200
+        assert len(response.json) == 2
+        assert all(p["estado_de_conservacao"] == "novo" for p in response.json)
+
+        # Filtra por estado "seminovo"
+        response = client.get("/products?estado_de_conservacao=seminovo")
+        assert response.status_code == 200
+        assert len(response.json) == 1
+        assert response.json[0]["estado_de_conservacao"] == "seminovo"
+
+    def test_filter_products_combined(self, client, auth_headers):
+        """Deve filtrar produtos combinando categoria e estado"""
+        # Cria produtos variados
+        products = [
+            {"title": "iPhone novo", "description": "Desc", "price": 3000.0, "category": "eletrônicos", "estado_de_conservacao": "novo"},
+            {"title": "iPhone usado", "description": "Desc", "price": 1500.0, "category": "eletrônicos", "estado_de_conservacao": "usado"},
+            {"title": "Geladeira nova", "description": "Desc", "price": 2000.0, "category": "eletrodomésticos", "estado_de_conservacao": "novo"},
+            {"title": "Notebook novo", "description": "Desc", "price": 2500.0, "category": "eletrônicos", "estado_de_conservacao": "novo"}
+        ]
+        for p in products:
+            client.post("/products", json=p, headers=auth_headers)
+
+        # Filtra por eletrônicos novos
+        response = client.get("/products?category=eletrônicos&estado_de_conservacao=novo")
+        assert response.status_code == 200
+        assert len(response.json) == 2
+        assert all(p["category"] == "eletrônicos" and p["estado_de_conservacao"] == "novo" for p in response.json)
+
 
 class TestCreateProduct:
     """Testes para a rota de criação (POST /products)"""

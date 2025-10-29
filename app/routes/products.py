@@ -18,8 +18,12 @@ def list_products():
     Lista produtos disponíveis (não comprados e não em negociação).
     Query params:
         - q: string de busca (busca em title e description)
+        - category: filtro por categoria (eletrodomésticos, eletrônicos, móveis, outros)
+        - estado_de_conservacao: filtro por estado (novo, seminovo, usado)
     """
     search_query = request.args.get("q", "").strip()
+    category = request.args.get("category", "").strip()
+    estado_de_conservacao = request.args.get("estado_de_conservacao", "").strip()
 
     # Busca apenas produtos que ainda não foram "reservados" por um comprador
     query = Product.objects(buyer=None)
@@ -29,6 +33,14 @@ def list_products():
         query = query.filter(
             Q(title__icontains=search_query) | Q(description__icontains=search_query)
         )
+
+    # Filtro por categoria
+    if category:
+        query = query.filter(category=category)
+
+    # Filtro por estado de conservação
+    if estado_de_conservacao:
+        query = query.filter(estado_de_conservacao=estado_de_conservacao)
 
     products = query.order_by("-created_at")
     return jsonify([p.to_dict() for p in products]), 200
