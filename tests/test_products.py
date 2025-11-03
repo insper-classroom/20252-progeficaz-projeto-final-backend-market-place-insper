@@ -535,6 +535,261 @@ class TestListProductsWithConfirmation:
         assert len(response.json) == 0
 
 
+class TestUpdateProduct:
+    # testes para a rota de atualização (PUT/PATCH /products/<product_id>)
+
+    def test_update_product_success(self, client, auth_headers, sample_product):
+        # atualizar produto com sucesso
+        product_id = sample_product["id"]
+        update_data = {
+            "title": "Título Atualizado",
+            "description": "Descrição atualizada",
+            "price": 999.99,
+            "category": "móveis",
+            "estado_de_conservacao": "seminovo"
+        }
+        response = client.put(f"/products/{product_id}", json=update_data, headers=auth_headers)
+
+        assert response.status_code == 200
+        assert "product" in response.json
+        assert response.json["product"]["title"] == "Título Atualizado"
+        assert response.json["product"]["description"] == "Descrição atualizada"
+        assert response.json["product"]["price"] == 999.99
+        assert response.json["product"]["category"] == "móveis"
+        assert response.json["product"]["estado_de_conservacao"] == "seminovo"
+
+    def test_update_product_partial(self, client, auth_headers, sample_product):
+        # atualizar apenas alguns campos do produto
+        product_id = sample_product["id"]
+        original_title = sample_product["title"]
+
+        update_data = {"price": 500.0}
+        response = client.patch(f"/products/{product_id}", json=update_data, headers=auth_headers)
+
+        assert response.status_code == 200
+        assert response.json["product"]["price"] == 500.0
+        assert response.json["product"]["title"] == original_title
+
+    def test_update_product_not_owner(self, client, second_user_headers, sample_product):
+        # não deve permitir atualizar produto de outro usuário
+        product_id = sample_product["id"]
+        update_data = {"title": "Tentativa de atualização"}
+
+        response = client.put(f"/products/{product_id}", json=update_data, headers=second_user_headers)
+
+        assert response.status_code == 403
+        assert "error" in response.json
+
+    def test_update_product_already_sold(self, client, auth_headers, second_user_headers, sample_product):
+        # não deve permitir atualizar produto já vendido
+        product_id = sample_product["id"]
+
+        # vende o produto
+        gen_response = client.post(f"/products/{product_id}/generate-code", headers=auth_headers)
+        code = gen_response.json["confirmation_code"]
+        client.post("/products/confirm-with-code", json={"confirmation_code": code}, headers=second_user_headers)
+
+        # tenta atualizar
+        update_data = {"title": "Tentativa de atualização"}
+        response = client.put(f"/products/{product_id}", json=update_data, headers=auth_headers)
+
+        assert response.status_code == 400
+        assert "error" in response.json
+        assert "vendidos" in response.json["error"].lower()
+
+    def test_update_product_without_auth(self, client, sample_product):
+        # deve retornar erro 401 sem autenticação
+        product_id = sample_product["id"]
+        update_data = {"title": "Tentativa"}
+
+        response = client.put(f"/products/{product_id}", json=update_data)
+
+        assert response.status_code == 401
+
+    def test_update_product_not_found(self, client, auth_headers):
+        # deve retornar erro 404 para produto inexistente
+        fake_id = "507f1f77bcf86cd799439011"
+        update_data = {"title": "Teste"}
+
+        response = client.put(f"/products/{fake_id}", json=update_data, headers=auth_headers)
+
+        assert response.status_code == 404
+        assert "error" in response.json
+
+    def test_update_product_invalid_price(self, client, auth_headers, sample_product):
+        # não deve permitir preço negativo
+        product_id = sample_product["id"]
+        update_data = {"price": -100.0}
+
+        response = client.put(f"/products/{product_id}", json=update_data, headers=auth_headers)
+
+        assert response.status_code == 400
+        assert "error" in response.json
+
+    def test_update_product_invalid_category(self, client, auth_headers, sample_product):
+        # não deve permitir categoria inválida
+        product_id = sample_product["id"]
+        update_data = {"category": "categoria_invalida"}
+
+        response = client.put(f"/products/{product_id}", json=update_data, headers=auth_headers)
+
+        assert response.status_code == 400
+        assert "error" in response.json
+
+    def test_update_product_invalid_estado(self, client, auth_headers, sample_product):
+        # não deve permitir estado de conservação inválido
+        product_id = sample_product["id"]
+        update_data = {"estado_de_conservacao": "estado_invalido"}
+
+        response = client.put(f"/products/{product_id}", json=update_data, headers=auth_headers)
+
+        assert response.status_code == 400
+        assert "error" in response.json
+
+
+class TestDeleteProduct:
+    # testes para a rota de deleção (DELETE /products/<product_id>)
+
+    def test_delete_product_success(self, client, auth_headers, sample_product):
+        # deletar produto com sucesso
+        product_id = sample_product["id"]
+
+        response = client.delete(f"/products/{product_id}", headers=auth_headers)
+
+        assert response.status_code == 200
+        assert "message" in response.json
+
+        # verifica que produto foi deletado
+        get_response = client.get(f"/products/{product_id}")
+        assert get_response.status_code == 404
+
+    def test_delete_product_not_owner(self, client, second_user_headers, sample_product):
+        # não deve permitir deletar produto de outro usuário
+        product_id = sample_product["id"]
+
+        response = client.delete(f"/products/{product_id}", headers=second_user_headers)
+
+        assert response.status_code == 403
+        assert "error" in response.json
+
+    def test_delete_product_already_sold(self, client, auth_headers, second_user_headers, sample_product):
+        # não deve permitir deletar produto já vendido
+        product_id = sample_product["id"]
+
+        # vende o produto
+        gen_response = client.post(f"/products/{product_id}/generate-code", headers=auth_headers)
+        code = gen_response.json["confirmation_code"]
+        client.post("/products/confirm-with-code", json={"confirmation_code": code}, headers=second_user_headers)
+
+        # tenta deletar
+        response = client.delete(f"/products/{product_id}", headers=auth_headers)
+
+        assert response.status_code == 400
+        assert "error" in response.json
+        assert "vendidos" in response.json["error"].lower()
+
+    def test_delete_product_without_auth(self, client, sample_product):
+        # deve retornar erro 401 sem autenticação
+        product_id = sample_product["id"]
+
+        response = client.delete(f"/products/{product_id}")
+
+        assert response.status_code == 401
+
+    def test_delete_product_not_found(self, client, auth_headers):
+        # deve retornar erro 404 para produto inexistente
+        fake_id = "507f1f77bcf86cd799439011"
+
+        response = client.delete(f"/products/{fake_id}", headers=auth_headers)
+
+        assert response.status_code == 404
+        assert "error" in response.json
+
+
+class TestFavorites:
+    # testes para as rotas de favoritos
+
+    def test_add_favorite_success(self, client, auth_headers, sample_product):
+        # adicionar produto aos favoritos com sucesso
+        product_id = sample_product["id"]
+
+        response = client.post(f"/products/{product_id}/favorite", headers=auth_headers)
+
+        assert response.status_code == 201
+        assert "message" in response.json
+        assert "product" in response.json
+
+    def test_add_favorite_already_favorited(self, client, auth_headers, sample_product):
+        # adicionar produto que já está nos favoritos
+        product_id = sample_product["id"]
+
+        # adiciona pela primeira vez
+        client.post(f"/products/{product_id}/favorite", headers=auth_headers)
+
+        # tenta adicionar novamente
+        response = client.post(f"/products/{product_id}/favorite", headers=auth_headers)
+
+        assert response.status_code == 200
+        assert "já está nos favoritos" in response.json["message"]
+
+    def test_add_favorite_without_auth(self, client, sample_product):
+        # deve retornar erro 401 sem autenticação
+        product_id = sample_product["id"]
+
+        response = client.post(f"/products/{product_id}/favorite")
+
+        assert response.status_code == 401
+
+    def test_add_favorite_product_not_found(self, client, auth_headers):
+        # deve retornar erro 404 para produto inexistente
+        fake_id = "507f1f77bcf86cd799439011"
+
+        response = client.post(f"/products/{fake_id}/favorite", headers=auth_headers)
+
+        assert response.status_code == 404
+        assert "error" in response.json
+
+    def test_remove_favorite_success(self, client, auth_headers, sample_product):
+        # remover produto dos favoritos com sucesso
+        product_id = sample_product["id"]
+
+        # adiciona aos favoritos primeiro
+        client.post(f"/products/{product_id}/favorite", headers=auth_headers)
+
+        # remove dos favoritos
+        response = client.delete(f"/products/{product_id}/favorite", headers=auth_headers)
+
+        assert response.status_code == 200
+        assert "message" in response.json
+
+    def test_remove_favorite_not_in_favorites(self, client, auth_headers, sample_product):
+        # tentar remover produto que não está nos favoritos
+        product_id = sample_product["id"]
+
+        response = client.delete(f"/products/{product_id}/favorite", headers=auth_headers)
+
+        assert response.status_code == 404
+        assert "error" in response.json
+        assert "não está nos favoritos" in response.json["error"]
+
+    def test_remove_favorite_without_auth(self, client, sample_product):
+        # deve retornar erro 401 sem autenticação
+        product_id = sample_product["id"]
+
+        response = client.delete(f"/products/{product_id}/favorite")
+
+        assert response.status_code == 401
+
+    def test_remove_favorite_product_not_found(self, client, auth_headers):
+        # deve retornar erro 404 para produto inexistente
+        fake_id = "507f1f77bcf86cd799439011"
+
+        response = client.delete(f"/products/{fake_id}/favorite", headers=auth_headers)
+
+        assert response.status_code == 404
+        assert "error" in response.json
+
+
 class TestUploadProductImages:
     # testes para a rota de upload de imagens (POST /products/<product_id>/images)
 
@@ -568,7 +823,7 @@ class TestUploadProductImages:
         assert response.json["product"]["thumbnail"] is None
 
     def test_list_products_includes_images_and_thumbnail(self, client, auth_headers):
-        # listagem de produtos deve incluir campos images e thumbnail 
+        # listagem de produtos deve incluir campos images e thumbnail
         product_data = {"title": "Produto", "description": "Desc", "price": 100.0, "category": "outros", "estado_de_conservacao": "usado"}
         client.post("/products", json=product_data, headers=auth_headers)
 
