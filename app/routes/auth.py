@@ -3,6 +3,7 @@ from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identi
 from mongoengine.errors import NotUniqueError, ValidationError, DoesNotExist
 from ..models import User, Product
 from flask import Blueprint
+from datetime import timedelta
 
 bp = Blueprint("auth", __name__, url_prefix="/auth")
 
@@ -42,7 +43,7 @@ def login():
         u = User.objects.get(email=email)
         if not u.check_password(password):
             return jsonify({"error": "credenciais inválidas"}), 401
-        access_token = create_access_token(identity=str(u.id))
+        access_token = create_access_token(identity=str(u.id), expires_delta= timedelta(hours=4))
         return jsonify({"access_token": access_token}), 200
     except DoesNotExist:
         return jsonify({"error": "credenciais inválidas"}), 401
@@ -225,9 +226,11 @@ def my_favorites():
     user_id = get_jwt_identity()
     try:
         user = User.objects.get(id=user_id)
+        favorites_list = []
 
         # Converte a lista de referências em dicionários
-        favorites_list = [product.to_dict() for product in user.favorites if product]
+        if not user.favorites:
+            favorites_list += [product.to_dict() for product in user.favorites if product]
 
         return jsonify({
             "total": len(favorites_list),

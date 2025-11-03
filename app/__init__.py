@@ -9,13 +9,13 @@ from dotenv import load_dotenv
 def create_app(config_object=None):
     app = Flask(__name__, instance_relative_config=False)
 
-    # Enable CORS for all routes and origins
+    # setup do CORS
     CORS(app, resources={r"/*": {"origins": "*"}})
 
-    # load .env into environment
+    # acessando .env 
     load_dotenv()
 
-    # copy env vars into app.config
+    # carregando variaveis do env 
     for k, v in os.environ.items():
         if k.isupper():
             app.config[k] = v
@@ -24,7 +24,7 @@ def create_app(config_object=None):
     init_jwt(app)
     init_cloudinary(app)
 
-    # register blueprints
+    # registrando blueprints
     app.register_blueprint(auth_bp)
     app.register_blueprint(products_bp)
 

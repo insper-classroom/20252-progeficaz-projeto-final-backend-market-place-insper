@@ -6,10 +6,7 @@ _db = None
 _jwt = None
 
 def init_db(app):
-    """
-    Inicializa a conexão mongoengine e guarda a instancia do pymongo Database.
-    """
-    global _db
+    # Inicializa a conexão mongoengine e guarda a instancia do pymongo Database global _db
     connect(host=app.config["MONGO_URI"], alias="default")
     _db = get_db()  # retorna objeto pymongo.database.Database
 
@@ -23,9 +20,7 @@ def init_jwt(app):
     _jwt = JWTManager(app)
 
 def init_cloudinary(app):
-    """
-    Inicializa configuração do Cloudinary.
-    """
+    # Inicializa configuração do Cloudinary.
     cloudinary.config(
         cloud_name=app.config.get("CLOUDINARY_CLOUD_NAME"),
         api_key=app.config.get("CLOUDINARY_API_KEY"),
