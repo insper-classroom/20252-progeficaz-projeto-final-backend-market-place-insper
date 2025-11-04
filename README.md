@@ -1,22 +1,36 @@
-# BackEnd - Projeto MarketPlace Insper
+# MarketPlace Insper
 
-## Link do FrontEnd
+Projeto final da disciplina Programação Eficaz, desenvolvido por alunos do segundo semestre de Ciência da Computação no Insper.
 
-https://github.com/insper-classroom/20252-progeficaz-projeto-final-frontend-market-place-insper-front
+## Sobre o Projeto
 
-## Como rodar
+Um Marketplace desenvolvido para a comunidade Insper, visando mais segurança e confiabilidade no processo de compra e venda de produtos second-hand.
 
-Abra as pastas em instâncias diferentes do VSCode
-Abra um terminal pra cada
-Ative os respectivos envs nos dois terminais
-Dê os seguintes comandos:  ⁠ pip install -r requirements.txt ⁠ e ⁠ npm install -r requirements.txt ⁠
+## Link do Site 
+Link para a API com deploy feito na AWS
 
-No Front:
+```bash
+http://54.235.41.118/
+```
 
+## Como rodar o projeto
+
+### No Frontend
+
+```bash
+npm install
+```
+
+```bash
 npm run dev
+```
 
+### No Backend
 
-No Back:
+```bash
+pip install -r requirements.txt
+```
 
-python app.py
-
+```bash
+python run.py
+```
